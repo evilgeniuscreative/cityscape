@@ -127,6 +127,7 @@ body {
     left: -50px;
     position: absolute;
     width: 50px;
+    overflow: hidden;
 }
 
 .cloud {

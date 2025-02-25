@@ -147,10 +147,10 @@ class CityScene {
         `;
 
         // Generate moon craters with proper spacing
-        const moonSize = 60; // Moon diameter in pixels
+        const moonSize = 50; // Match the moon's CSS size
         const padding = 5;   // Minimum distance from edges
-        const minCraterSize = 5;
-        const maxCraterSize = 10;
+        const minCraterSize = 4;
+        const maxCraterSize = 8;
         const minDistance = 2; // Minimum distance between craters
         const maxAttempts = 50; // Maximum attempts to place a crater
         const craters = [];
@@ -163,9 +163,9 @@ class CityScene {
             
             while (!validPosition && attempts < maxAttempts) {
                 const size = Math.random() * (maxCraterSize - minCraterSize) + minCraterSize;
-                // Adjust position calculation to account for padding properly
-                const x = Math.random() * (moonSize - 2 * padding - size) + padding;
-                const y = Math.random() * (moonSize - 2 * padding - size) + padding;
+                // Calculate position within the moon's actual dimensions
+                const x = Math.random() * (moonSize - size);
+                const y = Math.random() * (moonSize - size);
                 
                 crater = {
                     size,
@@ -260,14 +260,15 @@ class CityScene {
     }
 
     updateClock(time) {
-        const hours = Math.floor(time / 60) % 12 || 12;
+        const hours = Math.floor(time / 60);
         const minutes = Math.floor(time % 60);
         
-        // Update digital clock
+        // Update digital clock with 24-hour format
         this.digitalClock.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
         
-        // Update analog clock
-        const hourAngle = (hours + minutes / 60) * 30;
+        // Update analog clock (convert 24h to 12h for analog display)
+        const analogHours = hours % 12 || 12;
+        const hourAngle = (analogHours + minutes / 60) * 30;
         const minuteAngle = minutes * 6;
         
         this.hourHand.style.transform = `rotate(${hourAngle}deg)`;
@@ -496,7 +497,7 @@ class CityScene {
 
         const animateUFO = () => {
             position += 2;
-            verticalOffset = Math.sin(position / 30) * 60;
+            verticalOffset = Math.sin(position / 30) * -60;
             ufo.style.transform = `translate(${-position}px, ${verticalOffset}px)`;
 
             if (position < window.innerWidth + 80) {
