@@ -130,11 +130,26 @@ body {
     overflow: hidden;
 }
 
+.cloud-container {
+    position: absolute;
+    transition: background-color 2s ease;
+    will-change: transform;
+}
+
 .cloud {
     background: white;
     border-radius: 20px;
     position: absolute;
     transition: background-color 2s ease;
+}
+
+@keyframes float {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-120vw);
+    }
 }
 
 .star {
@@ -177,7 +192,7 @@ body {
 }
 
 .window {
-    background: linear-gradient(to top, rgba(173, 216, 230, 0.3), rgba(255, 255, 255, 0.3));
+    background: linear-gradient(to top, rgba(163, 231, 254, 0.3), rgba(219, 223, 227, 0.3));
     border: 1px solid #eeeeee;
     height: 40px;
     transition: background 300ms ease;

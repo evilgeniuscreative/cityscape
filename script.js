@@ -2,22 +2,20 @@ class CityScene {
     constructor() {
         this.isPlaying = true;
         this.isDay = true;
-        this.timeScale = 360; // 1 real minute = 6 hours (360 minutes)
-        this.sunriseTime = 300;  // 5:00
-        this.sunPeakTime = 720;  // 12:00
-        this.sunsetTime = 1170;  // 19:30
-        this.moonPeakTime = 1380; // 23:00
-        this.moonsetTime = 280;  // 4:40
+        this.dayDuration = 30000; // 30 seconds in milliseconds
+        this.nightDuration = 30000; // 30 seconds in milliseconds
+        this.totalCycleDuration = this.dayDuration + this.nightDuration;
+        this.lastTimestamp = 0;
+        this.cycleStartTime = 0;
         this.screenWidth = window.innerWidth;
         this.screenHeight = window.innerHeight;
-        this.topPadding = 20; // Distance from viewport top
-        this.transitionDuration = 10; // seconds
+        this.topPadding = 20;
+        this.transitionDuration = 10;
         this.dayColor = '#87CEEB';    // Sky blue
-        this.sunsetColor = '#FF7F50'; // Coral
+        this.sunsetColor = 'linear-gradient(to right, #ffaf50 0%, #ff7e00 50%, #d9534f 100%)'; 
         this.nightColor = '#1a1a2e';  // Dark blue
         this.lastTransitionTime = null;
         this.setupScene();
-        this.setupControls();
         this.setupResizeHandler();
         this.startAnimation();
     }
@@ -111,7 +109,7 @@ class CityScene {
     }
 
     createStars() {
-        for (let i = 0; i < 50; i++) {
+        for (let i = 0; i < 100; i++) {
             const star = document.createElement('div');
             star.className = 'star';
             star.style.left = `${Math.random() * 100}%`;
@@ -121,16 +119,105 @@ class CityScene {
     }
 
     createClouds() {
-        const cloudCount = Math.floor(Math.random() * 4) + 4; // 4-7 clouds
-        for (let i = 0; i < cloudCount; i++) {
-            const cloud = document.createElement('div');
-            cloud.className = 'cloud';
-            cloud.style.left = `${Math.random() * 100}%`;
-            cloud.style.top = `${Math.random() * 40}%`;
-            cloud.style.width = `${Math.random() * 100 + 50}px`;
-            cloud.style.height = `${Math.random() * 30 + 20}px`;
-            this.sky.appendChild(cloud);
+        this.minClouds = 6;
+        this.maxClouds = 12;
+        this.clouds = new Set(); // Track active clouds
+        
+        // Initial cloud placement
+        const initialCount = Math.floor(Math.random() * (this.maxClouds - this.minClouds + 1)) + this.minClouds;
+        const screenSegments = initialCount + 1;
+        
+        for (let i = 0; i < initialCount; i++) {
+            this.createCloudGroup(true, i, screenSegments);
         }
+
+        // Continuously monitor and maintain cloud count
+        setInterval(() => {
+            this.maintainCloudCount();
+        }, 1000); // Check every second
+    }
+
+    maintainCloudCount() {
+        // Remove any finished clouds from tracking
+        for (const cloud of this.clouds) {
+            if (!document.body.contains(cloud)) {
+                this.clouds.delete(cloud);
+            }
+        }
+
+        // Add new clouds if below minimum
+        while (this.clouds.size < this.minClouds) {
+            this.createCloudGroup(false);
+        }
+
+        // Randomly add more clouds if below max
+        if (this.clouds.size < this.maxClouds && Math.random() < 0.3) {
+            this.createCloudGroup(false);
+        }
+    }
+
+    createCloudGroup(isInitial, index = 0, totalSegments = 1) {
+        const cloudContainer = document.createElement('div');
+        cloudContainer.style = "left:110%";
+        cloudContainer.className = 'cloud-container';
+        
+        // All clouds get random duration
+        const duration = 60 * (0.8 + Math.random() * 0.4); // 48-72 seconds (±20%)
+        
+        if (isInitial) {
+            // Initial placement: distribute across screen
+            const segmentWidth = 100 / totalSegments;
+            const basePosition = segmentWidth * (index + 0.5);
+            const randomOffset = (Math.random() - 0.5) * segmentWidth * 0.8;
+            const startPosition = basePosition + randomOffset;
+            
+            // Calculate remaining animation time based on position
+            const remainingDistance = 120 + startPosition; // Distance to travel (including offscreen)
+            const remainingDuration = (remainingDistance / 120) * duration;
+            
+            cloudContainer.style.animation = `float ${remainingDuration}s linear`;
+            cloudContainer.style.left = `${startPosition}%`;
+        } else {
+            // New clouds: start from right edge and animate left
+            cloudContainer.style.animation = `float ${duration}s linear`;
+        }
+        
+        // Random height within top portion of sky
+        cloudContainer.style.top = `${Math.random() * 35}%`;
+        
+        // Create 2-4 pieces for each cloud
+        const pieces = Math.floor(Math.random() * 3) + 2;
+        const baseWidth = Math.random() * 100 + 50;
+        const baseHeight = Math.random() * 30 + 20;
+        
+        for (let j = 0; j < pieces; j++) {
+            const cloudPiece = document.createElement('div');
+            cloudPiece.className = 'cloud';
+            
+            const widthVariation = baseWidth * (0.6 + Math.random() * 0.8);
+            const heightVariation = baseHeight * (0.6 + Math.random() * 0.8);
+            
+            const xOffset = j * (baseWidth * 0.3) - (baseWidth * 0.3);
+            const yOffset = (Math.random() - 0.5) * 20;
+            
+            cloudPiece.style.width = `${widthVariation}px`;
+            cloudPiece.style.height = `${heightVariation}px`;
+            cloudPiece.style.left = `${xOffset}px`;
+            cloudPiece.style.top = `${yOffset}px`;
+            cloudPiece.style.position = 'absolute';
+            cloudPiece.style.borderRadius = '20px';
+            
+            cloudContainer.appendChild(cloudPiece);
+        }
+
+        // Track cloud and handle removal
+        this.clouds.add(cloudContainer);
+        cloudContainer.addEventListener('animationend', () => {
+            this.clouds.delete(cloudContainer);
+            cloudContainer.remove();
+        });
+        
+        this.sky.appendChild(cloudContainer);
     }
 
     setupCelestialBodies() {
@@ -231,19 +318,38 @@ class CityScene {
         const playPauseBtn = document.getElementById('playPause');
         const toggleClockBtn = document.getElementById('toggleClock');
 
-        playPauseBtn.addEventListener('click', () => {
+        if (!playPauseBtn || !toggleClockBtn) {
+            console.error('Control buttons not found');
+            return;
+        }
+
+        // Remove any existing event listeners
+        playPauseBtn.replaceWith(playPauseBtn.cloneNode(true));
+        toggleClockBtn.replaceWith(toggleClockBtn.cloneNode(true));
+
+        // Get the fresh elements
+        const newPlayPauseBtn = document.getElementById('playPause');
+        const newToggleClockBtn = document.getElementById('toggleClock');
+
+        newPlayPauseBtn.addEventListener('click', () => {
             this.isPlaying = !this.isPlaying;
-            playPauseBtn.textContent = this.isPlaying ? 'Pause' : 'Play';
+            newPlayPauseBtn.textContent = this.isPlaying ? 'Pause' : 'Play';
         });
 
-        toggleClockBtn.addEventListener('click', () => {
+        newToggleClockBtn.addEventListener('click', () => {
             const digitalClock = document.getElementById('digital-clock');
             const analogClock = document.getElementById('analog-clock');
-            const isDigital = digitalClock.classList.contains('active');
+            
+            if (!digitalClock || !analogClock) {
+                console.error('Clock elements not found');
+                return;
+            }
 
+            const isDigital = digitalClock.classList.contains('active');
             digitalClock.classList.toggle('active');
             analogClock.classList.toggle('active');
-            toggleClockBtn.textContent = isDigital ? 'Switch to Digital' : 'Switch to Analog';
+            analogClock.classList.toggle('hidden');
+            newToggleClockBtn.textContent = isDigital ? 'Switch to Digital' : 'Switch to Analog';
         });
     }
 
@@ -251,11 +357,6 @@ class CityScene {
         window.addEventListener('resize', () => {
             this.screenWidth = window.innerWidth;
             this.screenHeight = window.innerHeight;
-            // Recalculate positions immediately on resize
-            if (this.sun && this.moon) {
-                const simulatedMinutes = this.getCurrentSimulatedMinutes();
-                this.updateCelestialPositions(simulatedMinutes);
-            }
         });
     }
 
@@ -275,239 +376,167 @@ class CityScene {
         this.minuteHand.style.transform = `rotate(${minuteAngle}deg)`;
     }
 
-    calculateProgress(currentTime, startTime, peakTime, endTime, crossesMidnight = false) {
-        if (crossesMidnight && currentTime < startTime) {
-            currentTime += 1440; // Add 24 hours in minutes
-        }
-        
-        const beforePeak = currentTime <= peakTime;
-        const totalDuration = endTime - startTime;
-        const halfDuration = totalDuration / 2;
-        
-        if (beforePeak) {
-            return (currentTime - startTime) / (peakTime - startTime) * 0.5;
-        } else {
-            return 0.5 + (currentTime - peakTime) / (endTime - peakTime) * 0.5;
-        }
-    }
-
-    calculateParabolicPosition(progress, elementHeight) {
-        // Calculate parabola parameters based on screen dimensions
-        const h = this.screenWidth / 2;
-        
-        // Adjust k to account for element height to ensure top edge is 20px from viewport top
-        const k = this.screenHeight - this.topPadding - elementHeight;
-        
-        // Adjust 'a' based on screen dimensions to maintain proper arc
-        const a = k / (this.screenWidth * this.screenWidth / 4);
-        
-        const x = progress * this.screenWidth;
-        const y = -a * Math.pow(x - h, 2) + k;
-        
-        return { x, y };
-    }
-
-    getCurrentSimulatedMinutes() {
-        if (!this.startTime) return 0;
-        const progress = ((Date.now() - this.startTime) / 1000) % 120 / 60;
-        return (progress * 720) % 1440;
-    }
-
-    updateCelestialPositions(simulatedMinutes) {
-        const isNightTransition = simulatedMinutes >= this.sunsetTime || simulatedMinutes < this.moonsetTime;
-        
-        // Get element heights
-        const sunHeight = this.sun.offsetHeight;
-        const moonHeight = this.moon.offsetHeight;
-
-        let sunProgress, moonProgress;
-        
-        // Calculate progress for sun and moon
-        if (simulatedMinutes >= this.sunriseTime && simulatedMinutes <= this.sunsetTime) {
-            sunProgress = this.calculateProgress(
-                simulatedMinutes,
-                this.sunriseTime,
-                this.sunPeakTime,
-                this.sunsetTime
-            );
-        } else {
-            sunProgress = simulatedMinutes < this.sunriseTime ? 0 : 1;
-        }
-
-        if (simulatedMinutes >= this.sunsetTime || simulatedMinutes <= this.moonsetTime) {
-            let adjustedTime = simulatedMinutes;
-            if (simulatedMinutes < this.moonsetTime) {
-                adjustedTime += 1440;
-            }
-            
-            moonProgress = this.calculateProgress(
-                adjustedTime,
-                this.sunsetTime,
-                this.moonPeakTime,
-                this.moonsetTime + 1440,
-                true
-            );
-        } else {
-            moonProgress = simulatedMinutes < this.sunsetTime ? 0 : 1;
-        }
-
-        // Update positions
-        if (!isNightTransition) {
-            this.sun.style.display = 'block';
-            this.moon.style.display = 'none';
-            
-            const { x, y } = this.calculateParabolicPosition(sunProgress, sunHeight);
-            this.sun.style.transform = `translate(${x}px, ${-y}px)`;
-            
-            if (sunProgress > 0.9) {
-                this.moon.style.transform = 'translate(0, 0)';
-            }
-        } else {
-            this.sun.style.display = 'none';
-            this.moon.style.display = 'block';
-            
-            const { x, y } = this.calculateParabolicPosition(moonProgress, moonHeight);
-            this.moon.style.transform = `translate(${x}px, ${-y}px)`;
-            
-            if (moonProgress > 0.9) {
-                this.sun.style.transform = 'translate(0, 0)';
-            }
-        }
-    }
-
-    updateSkyColor(simulatedMinutes, timestamp) {
-        const container = document.getElementById('scene-container');
-        const currentTime = timestamp / 1000; // Convert to seconds
-
-        // Check if we're at sunrise or sunset
-        const isAtSunrise = simulatedMinutes >= this.sunriseTime && simulatedMinutes <= this.sunriseTime + 1;
-        const isAtSunset = simulatedMinutes >= this.sunsetTime && simulatedMinutes <= this.sunsetTime + 1;
-
-        // Start transition if we just hit sunrise or sunset
-        if ((isAtSunrise || isAtSunset) && !this.lastTransitionTime) {
-            this.lastTransitionTime = currentTime;
-        }
-
-        // Calculate transition progress if we're in a transition
-        if (this.lastTransitionTime) {
-            const progress = (currentTime - this.lastTransitionTime) / this.transitionDuration;
-
-            if (progress >= 1) {
-                // Transition complete
-                this.lastTransitionTime = null;
-                container.style.backgroundColor = isAtSunrise ? this.dayColor : this.nightColor;
-            } else {
-                // During transition
-                if (isAtSunrise || (this.lastTransitionTime && simulatedMinutes < this.sunsetTime)) {
-                    // Sunrise transition: night -> day
-                    const color = this.interpolateColor(this.nightColor, this.dayColor, progress);
-                    container.style.backgroundColor = color;
-                } else {
-                    // Sunset transition: day -> night
-                    const color = this.interpolateColor(this.dayColor, this.nightColor, progress);
-                    container.style.backgroundColor = color;
-                }
-            }
-        } else if (!this.lastTransitionTime) {
-            // Outside of transition periods
-            if (simulatedMinutes >= this.sunriseTime && simulatedMinutes < this.sunsetTime) {
-                container.style.backgroundColor = this.dayColor;
-            } else {
-                container.style.backgroundColor = this.nightColor;
-            }
-        }
-
-        // Update cloud colors based on current sky color
-        const isNight = simulatedMinutes < this.sunriseTime || simulatedMinutes >= this.sunsetTime;
-        document.querySelectorAll('.cloud').forEach(cloud => {
-            cloud.style.backgroundColor = isNight ? '#404040' : 'white';
-        });
-    }
-
     animateScene(timestamp) {
-        if (!this.startTime) this.startTime = timestamp;
-        if (!this.isPlaying) {
-            requestAnimationFrame(this.animateScene.bind(this));
-            return;
+        if (!this.lastTimestamp) {
+            this.lastTimestamp = timestamp;
+            this.cycleStartTime = timestamp;
         }
 
-        const progress = (timestamp - this.startTime) / 1000;
-        const dayNightCycle = (progress % 120) / 60;
-        
-        const simulatedMinutes = (dayNightCycle * 720) % 1440;
-        this.updateClock(simulatedMinutes);
+        if (this.isPlaying) {
+            const elapsed = (timestamp - this.cycleStartTime) % this.totalCycleDuration;
+            const isDaytime = elapsed < this.dayDuration;
+            
+            // Calculate progress through current phase (day or night)
+            const progress = isDaytime ? 
+                (elapsed / this.dayDuration) : 
+                ((elapsed - this.dayDuration) / this.nightDuration);
 
-        // Update celestial positions
-        this.updateCelestialPositions(simulatedMinutes);
-
-        // Update sky color with smooth transition
-        this.updateSkyColor(simulatedMinutes, timestamp);
-
-        // Update night elements
-        const isNight = simulatedMinutes < this.sunriseTime || simulatedMinutes >= this.sunsetTime;
-        
-        // Animate windows
-        if (isNight) {
-            document.querySelectorAll('.window').forEach(window => {
-                if (Math.random() < 0.01) {
-                    window.style.background = 'rgba(255, 255, 150, 0.8)';
-                }
-            });
-        }
-
-        // Animate streetlamps
-        document.querySelectorAll('.lamp-light').forEach(light => {
-            light.classList.toggle('lamp-night', isNight);
-        });
-
-        // Animate stars
-        document.querySelectorAll('.star').forEach(star => {
-            star.style.display = isNight ? 'block' : 'none';
-            if (isNight && Math.random() < 0.05) {
-                star.style.opacity = Math.random() < 0.5 ? '1' : '0';
+            // Update celestial bodies
+            if (isDaytime) {
+                // Sun movement during day
+                const sunX = progress * (window.innerWidth + 120) - 60;
+                const sunY = Math.sin(progress * Math.PI) * (window.innerHeight * 0.8);
+                this.sun.style.display = 'block';
+                this.moon.style.display = 'none';
+                this.sun.style.transform = `translate(${sunX}px, ${-sunY}px)`;
+            } else {
+                // Moon movement during night
+                const moonX = progress * (window.innerWidth + 100) - 50;
+                const moonY = Math.sin(progress * Math.PI) * (window.innerHeight * 0.8);
+                this.sun.style.display = 'none';
+                this.moon.style.display = 'block';
+                this.moon.style.transform = `translate(${moonX}px, ${-moonY}px)`;
             }
-        });
 
-        // Animate UFO
-        if (isNight && Math.random() < 0.001) {
-            this.spawnUFO();
+            // Update sky color
+            const sceneContainer = document.getElementById('scene-container');
+            if (isDaytime) {
+                if (progress < 0.2) {
+                    // Sunrise transition
+                    sceneContainer.style.backgroundColor = this.interpolateColor(this.nightColor, this.dayColor, progress * 5);
+                } else if (progress > 0.8) {
+                    // Sunset transition
+                    sceneContainer.style.backgroundColor = this.interpolateColor(this.dayColor, this.sunsetColor, (progress - 0.8) * 5);
+                } else {
+                    sceneContainer.style.backgroundColor = this.dayColor;
+                }
+            } else {
+                if (progress < 0.2) {
+                    // Night transition
+                    sceneContainer.style.backgroundColor = this.interpolateColor(this.sunsetColor, this.nightColor, progress * 5);
+                } else {
+                    sceneContainer.style.backgroundColor = this.nightColor;
+                }
+            }
+
+            // Update clock
+            const totalMinutes = isDaytime ? 
+                Math.floor((progress * 720)) : // 0:00 to 12:00 during day
+                Math.floor((progress * 720) + 720); // 12:00 to 24:00 during night
+            this.updateClock(totalMinutes);
+
+            // Animate streetlamps
+            document.querySelectorAll('.lamp-light').forEach(light => {
+                light.classList.toggle('lamp-night', !isDaytime);
+            });
+
+            // Animate stars
+            document.querySelectorAll('.star').forEach(star => {
+                star.style.display = isDaytime ? 'none' : 'block';
+            });
+
+            // Random UFO appearance during night
+            if (!isDaytime && Math.random() < 0.001) {
+                this.spawnUFO();
+            }
         }
 
-        // Animate clouds
-        document.querySelectorAll('.cloud').forEach((cloud, index) => {
-            const left = parseFloat(cloud.style.left) || 0;
-            cloud.style.left = `${(left + 0.1) % 120 - 20}%`;
-        });
-
+        this.lastTimestamp = timestamp;
         requestAnimationFrame(this.animateScene.bind(this));
     }
 
     spawnUFO() {
         const ufo = document.getElementById('ufo');
+        if (!ufo || ufo.style.display === 'block') return;
+
         ufo.style.display = 'block';
         ufo.innerHTML = `
-            <div style="position: relative; width: 100%; height: 100%;">
-                <div style="position: absolute; top: 0; left: 10%; width: 80%; height: 20px; background: #1a1a2e; border-radius: 50%;"></div>
-                <div style="position: absolute; top: 10px; left: 0; width: 100%; height: 30px; background: #4169E1; border-radius: 50%;"></div>
-            </div>
-        `;
+            <div style="
+                position: absolute;
+                width: 100%;
+                height: 20px;
+                background: radial-gradient(circle at center, rgba(255,255,255,0.8) 0%, rgba(173,216,230,0.4) 70%, transparent 100%);
+                top: -10px;
+                border-radius: 50%;
+            "></div>
+            <div style="
+                width: 80px;
+                height: 20px;
+                background: linear-gradient(to bottom, #a3a3a3, #808080);
+                border-radius: 40px;
+                position: relative;
+            "></div>`;
 
-        let position = 0;
-        let verticalOffset = 0;
+        // Start at right edge
+        const startX = window.innerWidth + 80;
+        // Random starting Y position (20px from top to 60% of screen height)
+        const startY = Math.random() * (window.innerHeight * 0.6 - 40) + 20;
+        
+        ufo.style.transform = `translate(${startX}px, ${startY}px)`;
+        
+        // Generate random waypoints for the UFO to follow
+        const waypoints = [];
+        const numWaypoints = Math.floor(Math.random() * 5) + 5; // 5-9 waypoints
+        
+        for (let i = 0; i < numWaypoints; i++) {
+            const x = startX - ((i + 1) * (window.innerWidth + 160) / numWaypoints);
+            const y = Math.random() * (window.innerHeight * 0.6 - 40) + 20; // Keep 20px from top
+            waypoints.push({ x, y });
+        }
 
-        const animateUFO = () => {
-            position += 2;
-            verticalOffset = Math.sin(position / 30) * -60;
-            ufo.style.transform = `translate(${-position}px, ${verticalOffset}px)`;
+        this.animateUFO(ufo, waypoints, 0);
+    }
 
-            if (position < window.innerWidth + 80) {
-                requestAnimationFrame(animateUFO);
+    animateUFO(ufo, waypoints, currentIndex) {
+        if (currentIndex >= waypoints.length) {
+            ufo.style.display = 'none';
+            return;
+        }
+
+        const target = waypoints[currentIndex];
+        const duration = 1000; // Time to reach next waypoint
+
+        const start = {
+            x: parseFloat(ufo.style.transform.split('translate(')[1]),
+            y: parseFloat(ufo.style.transform.split(',')[1])
+        };
+
+        const startTime = performance.now();
+
+        const animate = (currentTime) => {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+
+            // Smooth easing
+            const easeProgress = progress < 0.5 
+                ? 2 * progress * progress 
+                : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+            const currentX = start.x + (target.x - start.x) * easeProgress;
+            const currentY = start.y + (target.y - start.y) * easeProgress;
+
+            ufo.style.transform = `translate(${currentX}px, ${currentY}px)`;
+
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else if (currentIndex < waypoints.length - 1) {
+                this.animateUFO(ufo, waypoints, currentIndex + 1);
             } else {
                 ufo.style.display = 'none';
             }
         };
 
-        animateUFO();
+        requestAnimationFrame(animate);
     }
 
     interpolateColor(color1, color2, factor) {
