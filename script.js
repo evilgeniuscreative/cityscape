@@ -10,16 +10,21 @@ class CityScene {
         this.screenHeight = window.innerHeight;
         this.topPadding = 20;
         this.transitionDuration = 10;
-        this.dayColor = '#87CEEB';    // Sky blue
+        this.dayColor = 'skyblue';
         this.sunsetColor = 'linear-gradient(to right, #ffaf50 0%, #ff7e00 50%, #d9534f 100%)'; 
-        this.nightColor = '#1a1a2e';  // Dark blue
+        this.nightColor = '#1a1a2e'; 
         this.lastTransitionTime = null;
         this.sky = document.getElementById('sky');
         this.sun = document.getElementById('sun');
         this.moon = document.getElementById('moon');
         this.clock = document.getElementById('clock');
-        this.stars = Array.from(document.getElementsByClassName('star'));
+        this.starContainer = null;
         this.cityscape = document.getElementById('cityscape');
+        this.clouds = [];
+        this.minClouds = 4;
+        this.cloudDirection = Math.random() < 0.5 ? 'left' : 'right';
+        this.baseCloudSpeed = 40;
+        
         this.setupScene();
         this.setupResizeHandler();
         this.startAnimation();
@@ -30,8 +35,8 @@ class CityScene {
         this.createHouses();
         this.createStreetlamps();
         this.createStars();
-        this.createClouds();
         this.setupCelestialBodies();
+        this.setupClouds();
         this.setupClock();
         this.setupControls();
     }
@@ -112,115 +117,127 @@ class CityScene {
     }
 
     createStars() {
-        for (let i = 0; i < 100; i++) {
+        const starCount = 100;
+        const starContainer = document.createElement('div');
+        starContainer.id = 'stars';
+        starContainer.style.position = 'absolute';
+        starContainer.style.width = '100%';
+        starContainer.style.height = '100%';
+        starContainer.style.overflow = 'hidden';
+        starContainer.style.display = 'none';
+        
+        for (let i = 0; i < starCount; i++) {
             const star = document.createElement('div');
             star.className = 'star';
+            
+            // Random position
             star.style.left = `${Math.random() * 100}%`;
-            star.style.top = `${Math.random() * 60}%`;
-            this.sky.appendChild(star);
+            star.style.top = `${Math.random() * 40}%`; // Top 40% of sky
+            
+            // Random size (1-3px)
+            const size = Math.random() * 2 + 1;
+            star.style.width = `${size}px`;
+            star.style.height = `${size}px`;
+            
+            // Random twinkle delay
+            star.style.animationDelay = `${Math.random() * 2}s`;
+            
+            starContainer.appendChild(star);
+        }
+        
+        this.sky.appendChild(starContainer);
+        this.starContainer = starContainer;
+    }
+
+    setupClouds() {
+        // Initial cloud creation
+        for (let i = 0; i < this.minClouds; i++) {
+            this.createCloud(true);
         }
     }
 
-    createClouds() {
-        this.minClouds = 6;
-        this.maxClouds = 12;
-        this.clouds = new Set(); // Track active clouds
+    createCloud(isInitial = false) {
+        const cloud = document.createElement('div');
+        cloud.className = 'cloud';
         
-        // Initial cloud placement
-        const initialCount = Math.floor(Math.random() * (this.maxClouds - this.minClouds + 1)) + this.minClouds;
-        const screenSegments = initialCount + 1;
+        // Random cloud size
+        const width = Math.random() * 100 + 100; // 100-200px
+        const height = width * 0.6; // Maintain aspect ratio
         
-        for (let i = 0; i < initialCount; i++) {
-            this.createCloudGroup(true, i, screenSegments);
-        }
-
-        // Continuously monitor and maintain cloud count
-        setInterval(() => {
-            this.maintainCloudCount();
-        }, 1000); // Check every second
-    }
-
-    maintainCloudCount() {
-        // Remove any finished clouds from tracking
-        for (const cloud of this.clouds) {
-            if (!document.body.contains(cloud)) {
-                this.clouds.delete(cloud);
-            }
-        }
-
-        // Add new clouds if below minimum
-        while (this.clouds.size < this.minClouds) {
-            this.createCloudGroup(false);
-        }
-
-        // Randomly add more clouds if below max
-        if (this.clouds.size < this.maxClouds && Math.random() < 0.3) {
-            this.createCloudGroup(false);
-        }
-    }
-
-    createCloudGroup(isInitial, index = 0, totalSegments = 1) {
-        const cloudContainer = document.createElement('div');
-        cloudContainer.style = "left:110%";
-        cloudContainer.className = 'cloud-container';
+        cloud.style.cssText = `
+            position: absolute;
+            width: ${width}px;
+            height: ${height}px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50px;
+            z-index: 2;
+            filter: blur(3px);
+        `;
         
-        // All clouds get random duration
-        const duration = 60 * (0.8 + Math.random() * 0.4); // 48-72 seconds (±20%)
+        // Add cloud puffs
+        for (let i = 0; i < 3; i++) {
+            const puff = document.createElement('div');
+            puff.style.cssText = `
+                position: absolute;
+                width: ${width * 0.6}px;
+                height: ${height * 0.6}px;
+                background: rgba(255, 255, 255, 0.9);
+                border-radius: 50%;
+                top: ${height * 0.2}px;
+                left: ${width * 0.2 * i}px;
+            `;
+            cloud.appendChild(puff);
+        }
+        
+        // Set initial position
+        const y = Math.random() * (window.innerHeight * 0.3); // Top 30% of screen
+        let startX;
         
         if (isInitial) {
-            // Initial placement: distribute across screen
-            const segmentWidth = 100 / totalSegments;
-            const basePosition = segmentWidth * (index + 0.5);
-            const randomOffset = (Math.random() - 0.5) * segmentWidth * 0.8;
-            const startPosition = basePosition + randomOffset;
-            
-            // Calculate remaining animation time based on position
-            const remainingDistance = 120 + startPosition; // Distance to travel (including offscreen)
-            const remainingDuration = (remainingDistance / 120) * duration;
-            
-            cloudContainer.style.animation = `float ${remainingDuration}s linear`;
-            cloudContainer.style.left = `${startPosition}%`;
+            // Place randomly across screen for initial clouds
+            startX = Math.random() * window.innerWidth;
         } else {
-            // New clouds: start from right edge and animate left
-            cloudContainer.style.animation = `float ${duration}s linear`;
+            // Start from appropriate edge based on direction
+            startX = this.cloudDirection === 'left' ? window.innerWidth + width : -width;
         }
         
-        // Random height within top portion of sky
-        cloudContainer.style.top = `${Math.random() * 35}%`;
+        cloud.style.transform = `translate(${startX}px, ${y}px)`;
         
-        // Create 2-4 pieces for each cloud
-        const pieces = Math.floor(Math.random() * 3) + 2;
-        const baseWidth = Math.random() * 100 + 50;
-        const baseHeight = Math.random() * 30 + 20;
+        // Random speed variation (±25% of base speed)
+        const speedVariation = 1 + (Math.random() * 0.5 - 0.25); // 0.75 to 1.25
+        const speed = this.baseCloudSpeed * speedVariation;
+        const startTime = Date.now();
         
-        for (let j = 0; j < pieces; j++) {
-            const cloudPiece = document.createElement('div');
-            cloudPiece.className = 'cloud';
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = elapsed / (speed * 1000);
             
-            const widthVariation = baseWidth * (0.6 + Math.random() * 0.8);
-            const heightVariation = baseHeight * (0.6 + Math.random() * 0.8);
+            if (progress >= 1) {
+                this.sky.removeChild(cloud);
+                const index = this.clouds.indexOf(cloud);
+                if (index > -1) {
+                    this.clouds.splice(index, 1);
+                }
+                // Create a new cloud if below minimum
+                if (this.clouds.length < this.minClouds) {
+                    this.createCloud(false);
+                }
+                return;
+            }
             
-            const xOffset = j * (baseWidth * 0.3) - (baseWidth * 0.3);
-            const yOffset = (Math.random() - 0.5) * 20;
+            // Calculate position based on direction
+            const distance = window.innerWidth + width * 2;
+            const x = this.cloudDirection === 'left' 
+                ? startX - (distance * progress)
+                : startX + (distance * progress);
             
-            cloudPiece.style.width = `${widthVariation}px`;
-            cloudPiece.style.height = `${heightVariation}px`;
-            cloudPiece.style.left = `${xOffset}px`;
-            cloudPiece.style.top = `${yOffset}px`;
-            cloudPiece.style.position = 'absolute';
-            cloudPiece.style.borderRadius = '20px';
-            
-            cloudContainer.appendChild(cloudPiece);
-        }
-
-        // Track cloud and handle removal
-        this.clouds.add(cloudContainer);
-        cloudContainer.addEventListener('animationend', () => {
-            this.clouds.delete(cloudContainer);
-            cloudContainer.remove();
-        });
+            cloud.style.transform = `translate(${x}px, ${y}px)`;
+            requestAnimationFrame(animate);
+        };
         
-        this.sky.appendChild(cloudContainer);
+        this.sky.appendChild(cloud);
+        this.clouds.push(cloud);
+        requestAnimationFrame(animate);
     }
 
     setupCelestialBodies() {
@@ -228,7 +245,7 @@ class CityScene {
             <div style="position: relative; width: 100%; height: 100%;">
                 <div style="position: absolute; left: 15px; top: 20px; width: 8px; height: 8px; background: black; border-radius: 50%;"></div>
                 <div style="position: absolute; right: 15px; top: 20px; width: 8px; height: 8px; background: black; border-radius: 50%;"></div>
-                <div style="position: absolute; left: 50%; top: 35px; width: 10px; height: 10px; background: black; border-radius: 50%; transform: translateX(-50%);"></div>
+                <div style="position: absolute; left: 18px; top: 35px; width: 24px; height: 10px; border: 2px solid black; border-radius: 0 0 10px 10px; border-top: none;"></div>
             </div>`;
         
         this.sun.style.width = '60px';
@@ -236,14 +253,36 @@ class CityScene {
         this.sun.style.background = '#FFD700';
         this.sun.style.borderRadius = '50%';
         this.sun.style.position = 'absolute';
-        this.sun.style.zIndex = '2';
+        this.sun.style.zIndex = '1'; // Behind buildings and clouds
+        
+        // Create moon craters
+        const craters = [
+            { x: '20%', y: '30%', size: '12px' },
+            { x: '60%', y: '40%', size: '15px' },
+            { x: '35%', y: '60%', size: '10px' },
+            { x: '70%', y: '25%', size: '8px' },
+            { x: '45%', y: '70%', size: '14px' }
+        ];
+
+        this.moon.innerHTML = craters.map(crater => `
+            <div style="
+                position: absolute;
+                left: ${crater.x};
+                top: ${crater.y};
+                width: ${crater.size};
+                height: ${crater.size};
+                background: #8B8B8B;
+                border-radius: 50%;
+                box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3);
+            "></div>
+        `).join('');
         
         this.moon.style.width = '60px';
         this.moon.style.height = '60px';
-        this.moon.style.background = '#F5F5F5';
+        this.moon.style.background = '#A9A9A9'; // Medium grey
         this.moon.style.borderRadius = '50%';
         this.moon.style.position = 'absolute';
-        this.moon.style.zIndex = '2';
+        this.moon.style.zIndex = '1'; // Behind buildings and clouds
     }
 
     setupClock() {
@@ -325,25 +364,33 @@ class CityScene {
             elapsed / this.dayDuration : 
             (elapsed - this.dayDuration) / this.nightDuration;
 
-        // Update celestial bodies
+        // Ensure minimum number of clouds
+        while (this.clouds.length <= this.minClouds) {
+            this.createCloud(false);
+        }
+
+        // Update celestial bodies and sky
         if (isDaytime) {
             // Calculate sun position using parabola equation: y = -a(x-h)² + k
             const width = window.innerWidth;
             const height = window.innerHeight;
             
-            // x position: map progress (0-1) to screen width plus offscreen padding
             const sunX = -30 + (width + 60) * cycleProgress;
             
-            // Calculate y position using parabola
-            const a = 4 * (height - 20) / (width * width); // Controls parabola width
+            const topMargin = 30; // Keep 30px from top
+            const a = 2 * (height - topMargin) / (width * width); // Controls parabola width
             const h = width / 2;  // Peak is at center of screen
-            const k = height - 20; // Peak is 20px from top
-            const normalizedX = sunX + 30; // Adjust x to account for initial offset
+            const k = height - topMargin * 4; // Peak is 30px from top
+            const normalizedX = sunX + 30;
             const sunY = -a * Math.pow(normalizedX - h, 2) + k;
             
             this.sun.style.transform = `translate(${sunX}px, ${-sunY}px)`;
             this.sun.style.display = 'block';
             this.moon.style.display = 'none';
+            
+            this.sky.classList.remove('sky-day');
+            this.sky.classList.add('sky-night');
+            this.starContainer.style.display = 'none';
         } else {
             // Calculate moon position using same parabola
             const width = window.innerWidth;
@@ -351,28 +398,23 @@ class CityScene {
             
             const moonX = -30 + (width + 60) * cycleProgress;
             
-            const a = 4 * (height - 20) / (width * width);
+            const topMargin = 30;
+            const a = 2 * (height - topMargin) / (width * width);
             const h = width / 2;
-            const k = height - 20;
+            const k = height - topMargin * 4;
             const normalizedX = moonX + 30;
             const moonY = -a * Math.pow(normalizedX - h, 2) + k;
             
             this.moon.style.transform = `translate(${moonX}px, ${-moonY}px)`;
             this.moon.style.display = 'block';
             this.sun.style.display = 'none';
+            
+            this.sky.classList.remove('sky-night');
+ 
+            this.sky.classList.remove('sky-night');
+            this.sky.classList.add('sky-day');
+            this.starContainer.style.display = 'block';
         }
-
-        // Update sky color
-        const skyHue = isDaytime ? 
-            this.interpolateColor('#87CEEB', '#FF8C00', cycleProgress) : // Day to sunset
-            this.interpolateColor('#000033', '#000033', cycleProgress);  // Night stays dark blue
-
-        this.sky.style.backgroundColor = skyHue;
-
-        // Update stars
-        this.stars.forEach(star => {
-            star.style.display = isDaytime ? 'none' : 'block';
-        });
 
         // Update clock
         const totalMinutes = isDaytime ? 
@@ -414,107 +456,56 @@ class CityScene {
     }
 
     spawnUFO() {
-        if (!this.isDark) return; // Only spawn at night
+        if (this.ufo) return;
         
-        const ufo = document.getElementById('ufo');
-        if (!ufo || ufo.style.display === 'block') return;
-
-        // Randomly choose direction (left-to-right or right-to-left)
-        const goingRight = Math.random() < 0.5;
+        const ufo = document.createElement('div');
+        ufo.className = 'ufo';
         
-        ufo.style.display = 'block';
-        ufo.innerHTML = `
-            <div style="
-                position: relative;
-                width: 120px;
-                height: 50px;
-            ">
-                <!-- Glass dome -->
-                <div style="
-                    position: absolute;
-                    top: -25px;
-                    left: 35px;
-                    width: 50px;
-                    height: 25px;
-                    background: linear-gradient(to bottom, 
-                        rgba(173, 216, 230, 0.9) 0%,
-                        rgba(173, 216, 230, 0.7) 50%,
-                        rgba(173, 216, 230, 0.4) 100%);
-                    border-radius: 25px 25px 0 0;
-                    box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.8);
-                "></div>
-                <!-- Saucer body -->
-                <div style="
-                    position: absolute;
-                    top: 0;
-                    width: 120px;
-                    height: 20px;
-                    background: linear-gradient(to bottom, #DDD 0%, #999 100%);
-                    border-radius: 60px 60px 0 0;
-                "></div>
-                <!-- Bottom section -->
-                <div style="
-                    position: absolute;
-                    top: 20px;
-                    width: 120px;
-                    height: 15px;
-                    background: linear-gradient(to bottom, #999 0%, #666 100%);
-                    border-radius: 0 0 60px 60px;
-                "></div>
-                <!-- Bottom lights -->
-                ${Array.from({length: 5}, (_, i) => `
-                    <div style="
-                        position: absolute;
-                        bottom: 5px;
-                        left: ${15 + i * 22}px;
-                        width: 8px;
-                        height: 8px;
-                        background: rgba(255, 255, 100, 0.8);
-                        border-radius: 50%;
-                        box-shadow: 0 0 5px rgba(255, 255, 100, 0.8);
-                    "></div>
-                `).join('')}
-            </div>`;
-
-        // Initial position
-        const startX = goingRight ? -120 : window.innerWidth + 120;
-        const startY = Math.random() * (window.innerHeight * 0.4 - 75) + 20; // Top 40% of screen
-        ufo.style.transform = `translate(${startX}px, ${startY}px)`;
+        // UFO body styles
+        ufo.style.width = '80px';
+        ufo.style.height = '40px';
+        ufo.style.position = 'absolute';
+        ufo.style.zIndex = '5'; // Above buildings
         
-        // Random speed (±50% variation)
-        const baseDuration = 8; // base seconds to cross screen
-        const duration = baseDuration * (0.5 + Math.random()); // 4-12 seconds
+        // Random starting position: either left or right side
+        const startFromLeft = Math.random() < 0.5;
+        const startX = startFromLeft ? -100 : window.innerWidth + 100;
+        const endX = startFromLeft ? window.innerWidth + 100 : -100;
         
-        let currentY = startY;
-        let lastMoveTime = 0;
+        // Random vertical position in top 40% of screen
+        const minY = 50;
+        const maxY = window.innerHeight * 0.4;
+        let currentY = Math.random() * (maxY - minY) + minY;
         
-        const animate = (currentTime) => {
-            if (!document.body.contains(ufo)) return;
+        // Random speed between 5 and 15 seconds for full crossing
+        const duration = (Math.random() * 10 + 5) * 1000;
+        const startTime = Date.now();
+        
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = elapsed / duration;
             
-            const progress = (currentTime - startTime) / (duration * 1000);
             if (progress >= 1) {
-                ufo.style.display = 'none';
+                this.sky.removeChild(ufo);
+                this.ufo = null;
                 return;
             }
             
-            // Random vertical movement (max once per second)
-            if (currentTime - lastMoveTime > 1000) { // 1 second cooldown
-                if (Math.random() < 0.3) { // 30% chance to move
-                    const moveAmount = (Math.random() - 0.5) * 75 * 2; // -75 to +75px
-                    currentY = Math.max(20, Math.min(window.innerHeight * 0.4 - 75, currentY + moveAmount));
-                    lastMoveTime = currentTime;
-                }
-            }
+            // Linear horizontal movement
+            const x = startX + (endX - startX) * progress;
             
-            const x = goingRight ? 
-                startX + (window.innerWidth + 240) * progress :
-                startX - (window.innerWidth + 240) * progress;
-                
+            // Add slight vertical wobble
+            const wobbleAmount = 20;
+            const wobbleSpeed = 5;
+            currentY += Math.sin(progress * Math.PI * wobbleSpeed) * wobbleAmount * (elapsed / duration);
+            currentY = Math.max(minY, Math.min(maxY, currentY));
+            
             ufo.style.transform = `translate(${x}px, ${currentY}px)`;
             requestAnimationFrame(animate);
         };
         
-        const startTime = performance.now();
+        this.sky.appendChild(ufo);
+        this.ufo = ufo;
         requestAnimationFrame(animate);
     }
 
