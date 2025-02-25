@@ -2,8 +2,8 @@ class CityScene {
     constructor() {
         this.isPlaying = true;
         this.isDark = false; // Track if it's nighttime
-        this.dayDuration = 30000; // 30 seconds in milliseconds
-        this.nightDuration = 30000; // 30 seconds in milliseconds
+        this.dayDuration = 20000; // 20 seconds in milliseconds
+        this.nightDuration = 20000; // 20 seconds in milliseconds
         this.totalCycleDuration = this.dayDuration + this.nightDuration;
         this.startTime = Date.now();
         this.screenWidth = window.innerWidth;
@@ -27,7 +27,7 @@ class CityScene {
         
         this.setupScene();
         this.setupResizeHandler();
-        this.startAnimation();
+        this.animateScene();
     }
 
     setupScene() {
@@ -42,33 +42,46 @@ class CityScene {
     }
 
     createBuildings() {
-        const buildingCount = Math.floor(Math.random() * 5) + 8; // 8-12 buildings
-        const containerWidth = window.innerWidth;
-        const spacing = containerWidth / buildingCount;
-
+        const buildingCount = Math.floor(window.innerWidth / 100);
+        const spacing = window.innerWidth / buildingCount;
+        
         for (let i = 0; i < buildingCount; i++) {
-            const height = Math.random() * 300 + 150;
-            const width = Math.random() * 50 + 100;
-            
             const building = document.createElement('div');
             building.className = 'building';
-
-            building.style.left = `${i * spacing}px`;
-            building.style.width = `${width}px`;
+            
+            // Random height between 100 and 300 pixels
+            const height = Math.random() * 200 + 100;
             building.style.height = `${height}px`;
-
+            
+            // Random width between 60 and 120 pixels
+            const width = Math.random() * 60 + 60;
+            building.style.width = `${width}px`;
+            
+            // Position building with spacing
+            building.style.left = `${i * spacing}px`;
+            
             // Add windows
-            const windowsHorizontal = Math.floor((width - 12) / 31); // 31 = window width + spacing
-            const windowsVertical = Math.floor((height - 12) / 46); // 46 = window height + spacing
-
-            for (let row = 0; row < windowsVertical; row++) {
-                for (let col = 0; col < windowsHorizontal; col++) {
-                    const window = document.createElement('div');
-                    window.className = 'window';
-                    building.appendChild(window);
+            const windowRows = Math.floor(height / 30);
+            const windowCols = Math.floor(width / 30);
+            
+            for (let row = 0; row < windowRows; row++) {
+                for (let col = 0; col < windowCols; col++) {
+                    const windowEl = document.createElement('div');
+                    windowEl.className = 'window';
+                    windowEl.style.top = `${row * 30 + 10}px`;
+                    windowEl.style.left = `${col * 30 + 10}px`;
+                    building.appendChild(windowEl);
                 }
             }
 
+            // Add street lamp
+            const lamp = document.createElement('div');
+            lamp.className = 'street-lamp';
+            const lampLight = document.createElement('div');
+            lampLight.className = 'lamp-light';
+            lamp.appendChild(lampLight);
+            building.appendChild(lamp);
+            
             this.cityscape.appendChild(building);
         }
     }
@@ -370,17 +383,16 @@ class CityScene {
         }
 
         // Update celestial bodies and sky
-        if (isDaytime) {
-            // Calculate sun position using parabola equation: y = -a(x-h)² + k
+        if (isDaytime) { // DAY TIME
             const width = window.innerWidth;
             const height = window.innerHeight;
             
             const sunX = -30 + (width + 60) * cycleProgress;
             
-            const topMargin = 30; // Keep 30px from top
-            const a = 2 * (height - topMargin) / (width * width); // Controls parabola width
-            const h = width / 2;  // Peak is at center of screen
-            const k = height - topMargin * 4; // Peak is 30px from top
+            const topMargin = 30;
+            const a = 2 * (height - topMargin) / (width * width);
+            const h = width / 2;
+            const k = height - topMargin * 4;
             const normalizedX = sunX + 30;
             const sunY = -a * Math.pow(normalizedX - h, 2) + k;
             
@@ -388,11 +400,20 @@ class CityScene {
             this.sun.style.display = 'block';
             this.moon.style.display = 'none';
             
-            this.sky.classList.remove('sky-day');
-            this.sky.classList.add('sky-night');
+            // During day, show day sky
+            if (!this.sky.classList.contains('sky-day')) {
+                this.sky.classList.remove('sky-night');
+                this.sky.classList.add('sky-day');
+            }
             this.starContainer.style.display = 'none';
-        } else {
-            // Calculate moon position using same parabola
+
+            // Turn off street lamps during day
+            document.querySelectorAll('.lamp-light').forEach(light => {
+                light.style.boxShadow = 'none';
+                light.style.backgroundColor = '#444';
+            });
+
+        } else { // NIGHT TIME
             const width = window.innerWidth;
             const height = window.innerHeight;
             
@@ -409,17 +430,24 @@ class CityScene {
             this.moon.style.display = 'block';
             this.sun.style.display = 'none';
             
-            this.sky.classList.remove('sky-night');
- 
-            this.sky.classList.remove('sky-night');
-            this.sky.classList.add('sky-day');
+            // During night, show night sky
+            if (!this.sky.classList.contains('sky-night')) {
+                this.sky.classList.remove('sky-day');
+                this.sky.classList.add('sky-night');
+            }
             this.starContainer.style.display = 'block';
+
+            // Turn on street lamps at night
+            document.querySelectorAll('.lamp-light').forEach(light => {
+                light.style.boxShadow = '0 0 20px 10px rgba(255, 244, 180, 0.8)';
+                light.style.backgroundColor = '#fff4b4';
+            });
         }
 
         // Update clock
         const totalMinutes = isDaytime ? 
-            Math.floor((cycleProgress * 720)) : // 0:00 to 12:00 during day
-            Math.floor((cycleProgress * 720) + 720); // 12:00 to 24:00 during night
+            Math.floor((cycleProgress * 720)) : 
+            Math.floor((cycleProgress * 720) + 720);
         this.updateClock(totalMinutes);
 
         // Update nighttime flag
