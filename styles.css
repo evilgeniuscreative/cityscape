@@ -1,0 +1,277 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    overflow: hidden;
+}
+
+#scene-container {
+    background: #87CEEB;
+    height: 100vh;
+    position: relative;
+    transition: background-color 2s ease;
+    width: 100vw;
+}
+
+#clock-container {
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    z-index: 1000;
+}
+
+#digital-clock {
+    background: #000;
+    border-radius: 5px;
+    color: #ff0000;
+    display: none;
+    font-family: 'Digital-7', monospace;
+    font-size: 2.5rem;
+    overflow: hidden;
+    padding: 10px;
+    width: 150px;
+}
+
+#digital-clock.active {
+    display: block;
+}
+
+#analog-clock {
+    background: #fff;
+    border-radius: 50%;
+    display: none;
+    height: 100px;
+    position: relative;
+    width: 100px;
+}
+
+#analog-clock.active {
+    display: block;
+}
+
+.clock-face {
+    height: 100%;
+    position: relative;
+    width: 100%;
+}
+
+.hour-hand, .minute-hand {
+    background: #000;
+    border-radius: 2px;
+    left: 50%;
+    position: absolute;
+    transform-origin: bottom center;
+}
+
+.hour-hand {
+    height: 30px;
+    top: 20px;
+    width: 4px;
+}
+
+.minute-hand {
+    height: 40px;
+    top: 10px;
+    width: 2px;
+}
+
+.center-dot {
+    background: #000;
+    border-radius: 50%;
+    height: 8px;
+    left: 50%;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+}
+
+#sky {
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+    width: 100%;
+}
+
+#sun {
+    background: #FFD700;
+    border-radius: 50%;
+    bottom: 0;
+    height: 60px;
+    left: -60px;
+    position: absolute;
+    transition: background-color 2s ease;
+    width: 60px;
+}
+
+#sun::before {
+    background: radial-gradient(#FFD700 50%, transparent 70%);
+    border-radius: 50%;
+    content: '';
+    height: 70px;
+    left: -5px;
+    position: absolute;
+    top: -5px;
+    width: 70px;
+}
+
+#moon {
+    background: #cdc6c6;
+    border-radius: 50%;
+    bottom: 0;
+    display: none;
+    height: 50px;
+    left: -50px;
+    position: absolute;
+    width: 50px;
+}
+
+.cloud {
+    background: white;
+    border-radius: 20px;
+    position: absolute;
+    transition: background-color 2s ease;
+}
+
+.star {
+    background: white;
+    border-radius: 50%;
+    display: none;
+    height: 2px;
+    position: absolute;
+    width: 2px;
+}
+
+#ufo {
+    display: none;
+    height: 40px;
+    position: absolute;
+    right: -80px;
+    width: 80px;
+}
+
+#cityscape {
+    bottom: 0;
+    height: 60%;
+    left: 0;
+    position: absolute;
+    right: 0;
+    width: 100%;
+}
+
+.building {
+    bottom: 0;
+    background: #808080;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: space-around;
+    padding: 10px 6px;
+    position: absolute;
+    transition: background-color 2s ease;
+}
+
+.window {
+    background: linear-gradient(to top, rgba(173, 216, 230, 0.3), rgba(255, 255, 255, 0.3));
+    border: 1px solid #eeeeee;
+    height: 40px;
+    transition: background 300ms ease;
+    width: 25px;
+}
+
+.house {
+    bottom: 0;
+    height: 80px;
+    position: absolute;
+    width: 100px;
+}
+
+.roof {
+    position: absolute;
+    height: 40px;
+    left: 0;
+    top: -40px;
+    width: 100%;
+}
+
+.door {
+    bottom: 0;
+    background: #FFFFFF;
+    border: 1px solid #eeeeee;
+    height: 40px;
+    left: 40%;
+    position: absolute;
+    width: 30px;
+}
+
+.house-window-left {
+    background: linear-gradient(to top, rgba(173, 216, 230, 0.3), rgba(255, 255, 255, 0.3));
+    bottom: 35px;
+    height: 30px;
+    left: 10%;
+    position: absolute;
+    width: 20px;
+}
+
+.house-window-right {
+    background: linear-gradient(to top, rgba(173, 216, 230, 0.3), rgba(255, 255, 255, 0.3));
+    bottom: 35px;
+    height: 30px;
+    position: absolute;
+    right: 10%;
+    width: 20px;
+}
+
+.streetlamp {
+    background: #404040;
+    bottom: 0;
+    height: 100px;
+    position: absolute;
+    width: 6px;
+}
+
+.lamp-light {
+    background: #FFFFFF;
+    border-radius: 50%;
+    height: 20px;
+    left: 50%;
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    transition: background-color 1s ease;
+    width: 20px;
+}
+
+.lamp-night {
+    background: #FFD700 !important;
+    box-shadow: 0px 16px 20px 7px rgba(255,215,0,0.80);
+    transition: background-color 1s ease;
+}
+
+#controls {
+    bottom: 20px;
+    left: 50%;
+    position: absolute;
+    transform: translateX(-50%);
+    z-index: 1000;
+}
+
+button {
+    background: #333;
+    border: none;
+    border-radius: 5px;
+    color: white;
+    cursor: pointer;
+    font-size: 1rem;
+    margin: 0 10px;
+    padding: 10px 20px;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background: #555;
+}
