@@ -1,12 +1,11 @@
 class CityScene {
     constructor() {
         this.isPlaying = true;
-        this.isDay = true;
+        this.isDark = false; // Track if it's nighttime
         this.dayDuration = 30000; // 30 seconds in milliseconds
         this.nightDuration = 30000; // 30 seconds in milliseconds
         this.totalCycleDuration = this.dayDuration + this.nightDuration;
-        this.lastTimestamp = 0;
-        this.cycleStartTime = 0;
+        this.startTime = Date.now();
         this.screenWidth = window.innerWidth;
         this.screenHeight = window.innerHeight;
         this.topPadding = 20;
@@ -15,14 +14,18 @@ class CityScene {
         this.sunsetColor = 'linear-gradient(to right, #ffaf50 0%, #ff7e00 50%, #d9534f 100%)'; 
         this.nightColor = '#1a1a2e';  // Dark blue
         this.lastTransitionTime = null;
+        this.sky = document.getElementById('sky');
+        this.sun = document.getElementById('sun');
+        this.moon = document.getElementById('moon');
+        this.clock = document.getElementById('clock');
+        this.stars = Array.from(document.getElementsByClassName('star'));
+        this.cityscape = document.getElementById('cityscape');
         this.setupScene();
         this.setupResizeHandler();
         this.startAnimation();
     }
 
     setupScene() {
-        this.cityscape = document.getElementById('cityscape');
-        this.sky = document.getElementById('sky');
         this.createBuildings();
         this.createHouses();
         this.createStreetlamps();
@@ -221,90 +224,26 @@ class CityScene {
     }
 
     setupCelestialBodies() {
-        this.sun = document.getElementById('sun');
-        this.moon = document.getElementById('moon');
-
-        // Add sun face
         this.sun.innerHTML = `
             <div style="position: relative; width: 100%; height: 100%;">
                 <div style="position: absolute; left: 15px; top: 20px; width: 8px; height: 8px; background: black; border-radius: 50%;"></div>
                 <div style="position: absolute; right: 15px; top: 20px; width: 8px; height: 8px; background: black; border-radius: 50%;"></div>
-                <div style="position: absolute; left: 50%; transform: translateX(-50%); top: 35px; width: 20px; height: 10px; border: 2px solid black; border-radius: 0 0 10px 10px; border-top: none;"></div>
-            </div>
-        `;
-
-        // Generate moon craters with proper spacing
-        const moonSize = 50; // Match the moon's CSS size
-        const padding = 5;   // Minimum distance from edges
-        const minCraterSize = 4;
-        const maxCraterSize = 8;
-        const minDistance = 2; // Minimum distance between craters
-        const maxAttempts = 50; // Maximum attempts to place a crater
-        const craters = [];
+                <div style="position: absolute; left: 50%; top: 35px; width: 10px; height: 10px; background: black; border-radius: 50%; transform: translateX(-50%);"></div>
+            </div>`;
         
-        // Try to place 7 craters
-        for (let i = 0; i < 7; i++) {
-            let attempts = 0;
-            let validPosition = false;
-            let crater;
-            
-            while (!validPosition && attempts < maxAttempts) {
-                const size = Math.random() * (maxCraterSize - minCraterSize) + minCraterSize;
-                // Calculate position within the moon's actual dimensions
-                const x = Math.random() * (moonSize - size);
-                const y = Math.random() * (moonSize - size);
-                
-                crater = {
-                    size,
-                    x,
-                    y
-                };
-                
-                // Check if this position overlaps with any existing craters
-                validPosition = true;
-                for (const existing of craters) {
-                    const distance = Math.sqrt(
-                        Math.pow(crater.x - existing.x, 2) + 
-                        Math.pow(crater.y - existing.y, 2)
-                    );
-                    const minRequiredDistance = (crater.size + existing.size) / 2 + minDistance;
-                    
-                    if (distance < minRequiredDistance) {
-                        validPosition = false;
-                        break;
-                    }
-                }
-                
-                attempts++;
-            }
-            
-            if (validPosition) {
-                craters.push(crater);
-            }
-        }
-
-        // Render the craters
-        this.moon.innerHTML = craters.map(crater => 
-            `<div style="
-                position: absolute;
-                left: ${crater.x}px;
-                top: ${crater.y}px;
-                width: ${crater.size}px;
-                height: ${crater.size}px;
-                border: 2px solid #999;
-                border-radius: 50%;
-                box-sizing: border-box;
-            "></div>`
-        ).join('');
-
-        // Set initial positions
-        this.sun.style.left = '0';
-        this.sun.style.bottom = '0';
-        this.sun.style.display = 'block';
+        this.sun.style.width = '60px';
+        this.sun.style.height = '60px';
+        this.sun.style.background = '#FFD700';
+        this.sun.style.borderRadius = '50%';
+        this.sun.style.position = 'absolute';
+        this.sun.style.zIndex = '2';
         
-        this.moon.style.left = '0';
-        this.moon.style.bottom = '0';
-        this.moon.style.display = 'none';
+        this.moon.style.width = '60px';
+        this.moon.style.height = '60px';
+        this.moon.style.background = '#F5F5F5';
+        this.moon.style.borderRadius = '50%';
+        this.moon.style.position = 'absolute';
+        this.moon.style.zIndex = '2';
     }
 
     setupClock() {
@@ -376,167 +315,80 @@ class CityScene {
         this.minuteHand.style.transform = `rotate(${minuteAngle}deg)`;
     }
 
-    animateScene(timestamp) {
-        if (!this.lastTimestamp) {
-            this.lastTimestamp = timestamp;
-            this.cycleStartTime = timestamp;
-        }
+    animateScene() {
+        if (!this.isPlaying) return;
 
-        if (this.isPlaying) {
-            const elapsed = (timestamp - this.cycleStartTime) % this.totalCycleDuration;
-            const isDaytime = elapsed < this.dayDuration;
+        const currentTime = Date.now();
+        const elapsed = (currentTime - this.startTime) % this.totalCycleDuration;
+        const isDaytime = elapsed < this.dayDuration;
+        const cycleProgress = isDaytime ? 
+            elapsed / this.dayDuration : 
+            (elapsed - this.dayDuration) / this.nightDuration;
+
+        // Update celestial bodies
+        if (isDaytime) {
+            // Calculate sun position using parabola equation: y = -a(x-h)² + k
+            const width = window.innerWidth;
+            const height = window.innerHeight;
             
-            // Calculate progress through current phase (day or night)
-            const progress = isDaytime ? 
-                (elapsed / this.dayDuration) : 
-                ((elapsed - this.dayDuration) / this.nightDuration);
-
-            // Update celestial bodies
-            if (isDaytime) {
-                // Sun movement during day
-                const sunX = progress * (window.innerWidth + 120) - 60;
-                const sunY = Math.sin(progress * Math.PI) * (window.innerHeight * 0.8);
-                this.sun.style.display = 'block';
-                this.moon.style.display = 'none';
-                this.sun.style.transform = `translate(${sunX}px, ${-sunY}px)`;
-            } else {
-                // Moon movement during night
-                const moonX = progress * (window.innerWidth + 100) - 50;
-                const moonY = Math.sin(progress * Math.PI) * (window.innerHeight * 0.8);
-                this.sun.style.display = 'none';
-                this.moon.style.display = 'block';
-                this.moon.style.transform = `translate(${moonX}px, ${-moonY}px)`;
-            }
-
-            // Update sky color
-            const sceneContainer = document.getElementById('scene-container');
-            if (isDaytime) {
-                if (progress < 0.2) {
-                    // Sunrise transition
-                    sceneContainer.style.backgroundColor = this.interpolateColor(this.nightColor, this.dayColor, progress * 5);
-                } else if (progress > 0.8) {
-                    // Sunset transition
-                    sceneContainer.style.backgroundColor = this.interpolateColor(this.dayColor, this.sunsetColor, (progress - 0.8) * 5);
-                } else {
-                    sceneContainer.style.backgroundColor = this.dayColor;
-                }
-            } else {
-                if (progress < 0.2) {
-                    // Night transition
-                    sceneContainer.style.backgroundColor = this.interpolateColor(this.sunsetColor, this.nightColor, progress * 5);
-                } else {
-                    sceneContainer.style.backgroundColor = this.nightColor;
-                }
-            }
-
-            // Update clock
-            const totalMinutes = isDaytime ? 
-                Math.floor((progress * 720)) : // 0:00 to 12:00 during day
-                Math.floor((progress * 720) + 720); // 12:00 to 24:00 during night
-            this.updateClock(totalMinutes);
-
-            // Animate streetlamps
-            document.querySelectorAll('.lamp-light').forEach(light => {
-                light.classList.toggle('lamp-night', !isDaytime);
-            });
-
-            // Animate stars
-            document.querySelectorAll('.star').forEach(star => {
-                star.style.display = isDaytime ? 'none' : 'block';
-            });
-
-            // Random UFO appearance during night
-            if (!isDaytime && Math.random() < 0.001) {
-                this.spawnUFO();
-            }
+            // x position: map progress (0-1) to screen width plus offscreen padding
+            const sunX = -30 + (width + 60) * cycleProgress;
+            
+            // Calculate y position using parabola
+            const a = 4 * (height - 20) / (width * width); // Controls parabola width
+            const h = width / 2;  // Peak is at center of screen
+            const k = height - 20; // Peak is 20px from top
+            const normalizedX = sunX + 30; // Adjust x to account for initial offset
+            const sunY = -a * Math.pow(normalizedX - h, 2) + k;
+            
+            this.sun.style.transform = `translate(${sunX}px, ${-sunY}px)`;
+            this.sun.style.display = 'block';
+            this.moon.style.display = 'none';
+        } else {
+            // Calculate moon position using same parabola
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            
+            const moonX = -30 + (width + 60) * cycleProgress;
+            
+            const a = 4 * (height - 20) / (width * width);
+            const h = width / 2;
+            const k = height - 20;
+            const normalizedX = moonX + 30;
+            const moonY = -a * Math.pow(normalizedX - h, 2) + k;
+            
+            this.moon.style.transform = `translate(${moonX}px, ${-moonY}px)`;
+            this.moon.style.display = 'block';
+            this.sun.style.display = 'none';
         }
 
-        this.lastTimestamp = timestamp;
+        // Update sky color
+        const skyHue = isDaytime ? 
+            this.interpolateColor('#87CEEB', '#FF8C00', cycleProgress) : // Day to sunset
+            this.interpolateColor('#000033', '#000033', cycleProgress);  // Night stays dark blue
+
+        this.sky.style.backgroundColor = skyHue;
+
+        // Update stars
+        this.stars.forEach(star => {
+            star.style.display = isDaytime ? 'none' : 'block';
+        });
+
+        // Update clock
+        const totalMinutes = isDaytime ? 
+            Math.floor((cycleProgress * 720)) : // 0:00 to 12:00 during day
+            Math.floor((cycleProgress * 720) + 720); // 12:00 to 24:00 during night
+        this.updateClock(totalMinutes);
+
+        // Update nighttime flag
+        this.isDark = !isDaytime;
+
+        // Random UFO appearance during night
+        if (this.isDark && Math.random() < 0.001) {
+            this.spawnUFO();
+        }
+
         requestAnimationFrame(this.animateScene.bind(this));
-    }
-
-    spawnUFO() {
-        const ufo = document.getElementById('ufo');
-        if (!ufo || ufo.style.display === 'block') return;
-
-        ufo.style.display = 'block';
-        ufo.innerHTML = `
-            <div style="
-                position: absolute;
-                width: 100%;
-                height: 20px;
-                background: radial-gradient(circle at center, rgba(255,255,255,0.8) 0%, rgba(173,216,230,0.4) 70%, transparent 100%);
-                top: -10px;
-                border-radius: 50%;
-            "></div>
-            <div style="
-                width: 80px;
-                height: 20px;
-                background: linear-gradient(to bottom, #a3a3a3, #808080);
-                border-radius: 40px;
-                position: relative;
-            "></div>`;
-
-        // Start at right edge
-        const startX = window.innerWidth + 80;
-        // Random starting Y position (20px from top to 60% of screen height)
-        const startY = Math.random() * (window.innerHeight * 0.6 - 40) + 20;
-        
-        ufo.style.transform = `translate(${startX}px, ${startY}px)`;
-        
-        // Generate random waypoints for the UFO to follow
-        const waypoints = [];
-        const numWaypoints = Math.floor(Math.random() * 5) + 5; // 5-9 waypoints
-        
-        for (let i = 0; i < numWaypoints; i++) {
-            const x = startX - ((i + 1) * (window.innerWidth + 160) / numWaypoints);
-            const y = Math.random() * (window.innerHeight * 0.6 - 40) + 20; // Keep 20px from top
-            waypoints.push({ x, y });
-        }
-
-        this.animateUFO(ufo, waypoints, 0);
-    }
-
-    animateUFO(ufo, waypoints, currentIndex) {
-        if (currentIndex >= waypoints.length) {
-            ufo.style.display = 'none';
-            return;
-        }
-
-        const target = waypoints[currentIndex];
-        const duration = 1000; // Time to reach next waypoint
-
-        const start = {
-            x: parseFloat(ufo.style.transform.split('translate(')[1]),
-            y: parseFloat(ufo.style.transform.split(',')[1])
-        };
-
-        const startTime = performance.now();
-
-        const animate = (currentTime) => {
-            const elapsed = currentTime - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-
-            // Smooth easing
-            const easeProgress = progress < 0.5 
-                ? 2 * progress * progress 
-                : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-
-            const currentX = start.x + (target.x - start.x) * easeProgress;
-            const currentY = start.y + (target.y - start.y) * easeProgress;
-
-            ufo.style.transform = `translate(${currentX}px, ${currentY}px)`;
-
-            if (progress < 1) {
-                requestAnimationFrame(animate);
-            } else if (currentIndex < waypoints.length - 1) {
-                this.animateUFO(ufo, waypoints, currentIndex + 1);
-            } else {
-                ufo.style.display = 'none';
-            }
-        };
-
-        requestAnimationFrame(animate);
     }
 
     interpolateColor(color1, color2, factor) {
@@ -559,6 +411,111 @@ class CityScene {
             g: parseInt(ctx.fillStyle.slice(3, 5), 16),
             b: parseInt(ctx.fillStyle.slice(5, 7), 16)
         };
+    }
+
+    spawnUFO() {
+        if (!this.isDark) return; // Only spawn at night
+        
+        const ufo = document.getElementById('ufo');
+        if (!ufo || ufo.style.display === 'block') return;
+
+        // Randomly choose direction (left-to-right or right-to-left)
+        const goingRight = Math.random() < 0.5;
+        
+        ufo.style.display = 'block';
+        ufo.innerHTML = `
+            <div style="
+                position: relative;
+                width: 120px;
+                height: 50px;
+            ">
+                <!-- Glass dome -->
+                <div style="
+                    position: absolute;
+                    top: -25px;
+                    left: 35px;
+                    width: 50px;
+                    height: 25px;
+                    background: linear-gradient(to bottom, 
+                        rgba(173, 216, 230, 0.9) 0%,
+                        rgba(173, 216, 230, 0.7) 50%,
+                        rgba(173, 216, 230, 0.4) 100%);
+                    border-radius: 25px 25px 0 0;
+                    box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.8);
+                "></div>
+                <!-- Saucer body -->
+                <div style="
+                    position: absolute;
+                    top: 0;
+                    width: 120px;
+                    height: 20px;
+                    background: linear-gradient(to bottom, #DDD 0%, #999 100%);
+                    border-radius: 60px 60px 0 0;
+                "></div>
+                <!-- Bottom section -->
+                <div style="
+                    position: absolute;
+                    top: 20px;
+                    width: 120px;
+                    height: 15px;
+                    background: linear-gradient(to bottom, #999 0%, #666 100%);
+                    border-radius: 0 0 60px 60px;
+                "></div>
+                <!-- Bottom lights -->
+                ${Array.from({length: 5}, (_, i) => `
+                    <div style="
+                        position: absolute;
+                        bottom: 5px;
+                        left: ${15 + i * 22}px;
+                        width: 8px;
+                        height: 8px;
+                        background: rgba(255, 255, 100, 0.8);
+                        border-radius: 50%;
+                        box-shadow: 0 0 5px rgba(255, 255, 100, 0.8);
+                    "></div>
+                `).join('')}
+            </div>`;
+
+        // Initial position
+        const startX = goingRight ? -120 : window.innerWidth + 120;
+        const startY = Math.random() * (window.innerHeight * 0.4 - 75) + 20; // Top 40% of screen
+        ufo.style.transform = `translate(${startX}px, ${startY}px)`;
+        
+        // Random speed (±50% variation)
+        const baseDuration = 8; // base seconds to cross screen
+        const duration = baseDuration * (0.5 + Math.random()); // 4-12 seconds
+        
+        let currentY = startY;
+        let lastMoveTime = 0;
+        
+        const animate = (currentTime) => {
+            if (!document.body.contains(ufo)) return;
+            
+            const progress = (currentTime - startTime) / (duration * 1000);
+            if (progress >= 1) {
+                ufo.style.display = 'none';
+                return;
+            }
+            
+            // Random vertical movement (max once per second)
+            if (currentTime - lastMoveTime > 1000) { // 1 second cooldown
+                if (Math.random() < 0.3) { // 30% chance to move
+                    const moveAmount = (Math.random() - 0.5) * 75 * 2; // -75 to +75px
+                    currentY = Math.max(20, Math.min(window.innerHeight * 0.4 - 75, currentY + moveAmount));
+                    lastMoveTime = currentTime;
+                }
+            }
+            
+            const x = goingRight ? 
+                startX + (window.innerWidth + 240) * progress :
+                startX - (window.innerWidth + 240) * progress;
+                
+            ufo.style.transform = `translate(${x}px, ${currentY}px)`;
+            requestAnimationFrame(animate);
+        };
+        
+        const startTime = performance.now();
+        requestAnimationFrame(animate);
     }
 
     startAnimation() {
