@@ -1,13 +1,11 @@
 class CityScene {
     constructor() {
         this.isPlaying = true;
-        this.isDay = true;
-        this.timeScale = 360; // 1 real minute = 6 hours (360 minutes)
-        this.sunriseTime = 300;  // 5:00
-        this.sunPeakTime = 720;  // 12:00
-        this.sunsetTime = 1170;  // 19:30
-        this.moonPeakTime = 1380; // 23:00
-        this.moonsetTime = 280;  // 4:40
+        this.isDark = false; // Track if it's nighttime
+        this.dayDuration = 30000; // 30 seconds in milliseconds
+        this.nightDuration = 30000; // 30 seconds in milliseconds
+        this.totalCycleDuration = this.dayDuration + this.nightDuration;
+        this.startTime = Date.now();
         this.screenWidth = window.innerWidth;
         this.screenHeight = window.innerHeight;
         this.topPadding = 20; // Distance from viewport top
@@ -61,58 +59,33 @@ class CityScene {
     }
 
     createBuildings() {
-        const buildingCount = Math.floor(Math.random() * 4) + 8; // 8-11 buildings
+        const buildingCount = Math.floor(Math.random() * 5) + 8; // 8-12 buildings
         const containerWidth = window.innerWidth;
-        
+        const spacing = containerWidth / buildingCount;
+
         for (let i = 0; i < buildingCount; i++) {
+            const height = Math.random() * 300 + 150;
+            const width = Math.random() * 50 + 100;
+            
             const building = document.createElement('div');
             building.className = 'building';
-            
-            // Width calculation for 2-4 windows per row
-            const minCols = 2; // Minimum 2 columns
-            const maxCols = 4;
-            const totalCols = minCols + Math.floor(Math.random() * (maxCols - minCols + 1));
-            
-            // Window and spacing dimensions
-            const windowWidth = 20;
-            const windowHeight = 30;
-            const windowGap = 10;
-            const buildingPadding = 15; // 15px padding on all sides
-            
-            // Calculate rows to ensure it's divisible by 3
-            const minRows = 3; // Minimum number of window rows (must be divisible by 3)
-            const maxExtraRows = 6; // Maximum additional rows (must be divisible by 3)
-            
-            // Generate random number of rows that's divisible by 3
-            const extraRows = Math.floor(Math.random() * (maxExtraRows / 3)) * 3;
-            const totalRows = minRows + extraRows;
-            
-            // Create window container
-            const windowContainer = document.createElement('div');
-            windowContainer.className = 'window-container';
-            
-            // Create windows in a grid layout
-            for (let row = 0; row < totalRows; row++) {
-                const rowDiv = document.createElement('div');
-                rowDiv.className = 'window-row';
-                for (let col = 0; col < totalCols; col++) {
-                    const windowEl = this.createWindow(rowDiv);
+
+            building.style.left = `${i * spacing}px`;
+            building.style.width = `${width}px`;
+            building.style.height = `${height}px`;
+
+            // Add windows
+            const windowsHorizontal = Math.floor((width - 12) / 31); // 31 = window width + spacing
+            const windowsVertical = Math.floor((height - 12) / 46); // 46 = window height + spacing
+
+            for (let row = 0; row < windowsVertical; row++) {
+                for (let col = 0; col < windowsHorizontal; col++) {
+                    const window = document.createElement('div');
+                    window.className = 'window';
+                    building.appendChild(window);
                 }
-                windowContainer.appendChild(rowDiv);
             }
-            
-            // Calculate exact height based on rows plus padding
-            const contentHeight = (totalRows * windowHeight) + ((totalRows - 1) * windowGap);
-            const buildingHeight = contentHeight + (buildingPadding * 2);
-            
-            // Calculate width based on columns plus padding
-            const contentWidth = (totalCols * windowWidth) + ((totalCols - 1) * windowGap);
-            const buildingWidth = Math.max(contentWidth + (buildingPadding * 2), 120);
-            
-            building.style.width = `${buildingWidth}px`;
-            building.style.height = `${buildingHeight}px`;
-            
-            building.appendChild(windowContainer);
+
             this.cityscape.appendChild(building);
         }
     }
@@ -297,198 +270,76 @@ class CityScene {
         minuteHand.style.transform = `rotate(${minuteAngle}deg)`;
     }
 
-    calculateProgress(currentTime, startTime, peakTime, endTime, crossesMidnight = false) {
-        if (crossesMidnight && currentTime < startTime) {
-            currentTime += 1440; // Add 24 hours in minutes
-        }
-        
-        const beforePeak = currentTime <= peakTime;
-        const totalDuration = endTime - startTime;
-        const halfDuration = totalDuration / 2;
-        
-        if (beforePeak) {
-            return (currentTime - startTime) / (peakTime - startTime) * 0.5;
-        } else {
-            return 0.5 + (currentTime - peakTime) / (endTime - peakTime) * 0.5;
-        }
-    }
+    animateScene() {
+        if (!this.isPlaying) return;
 
-    calculateParabolicPosition(progress, elementHeight) {
-        // Calculate parabola parameters based on screen dimensions
-        const h = this.screenWidth / 2;
-        
-        // Adjust k to account for element height to ensure top edge is 20px from viewport top
-        const k = this.screenHeight - this.topPadding - elementHeight;
-        
-        // Adjust 'a' based on screen dimensions to maintain proper arc
-        const a = k / (this.screenWidth * this.screenWidth / 4);
-        
-        const x = progress * this.screenWidth;
-        const y = -a * Math.pow(x - h, 2) + k;
-        
-        return { x, y };
-    }
+        const currentTime = Date.now();
+        const elapsed = (currentTime - this.startTime) % this.totalCycleDuration;
+        const isDaytime = elapsed < this.dayDuration;
+        const cycleProgress = isDaytime ? 
+            elapsed / this.dayDuration : 
+            (elapsed - this.dayDuration) / this.nightDuration;
 
-    getCurrentSimulatedMinutes() {
-        if (!this.startTime) return 0;
-        const progress = ((Date.now() - this.startTime) / 1000) % 120 / 60;
-        return (progress * 720) % 1440;
-    }
-
-    updateCelestialPositions(simulatedMinutes) {
-        const isNightTransition = simulatedMinutes >= this.sunsetTime || simulatedMinutes < this.moonsetTime;
-        
-        // Get element heights
-        const sunHeight = this.sun.offsetHeight;
-        const moonHeight = this.moon.offsetHeight;
-
-        let sunProgress, moonProgress;
-        
-        // Calculate progress for sun and moon
-        if (simulatedMinutes >= this.sunriseTime && simulatedMinutes <= this.sunsetTime) {
-            sunProgress = this.calculateProgress(
-                simulatedMinutes,
-                this.sunriseTime,
-                this.sunPeakTime,
-                this.sunsetTime
-            );
-        } else {
-            sunProgress = simulatedMinutes < this.sunriseTime ? 0 : 1;
+        // Ensure minimum number of clouds
+        while (this.clouds.length <= this.minClouds) {
+            this.createCloud(false);
         }
 
-        if (simulatedMinutes >= this.sunsetTime || simulatedMinutes <= this.moonsetTime) {
-            let adjustedTime = simulatedMinutes;
-            if (simulatedMinutes < this.moonsetTime) {
-                adjustedTime += 1440;
-            }
+        // Update celestial bodies and sky
+        if (isDaytime) {
+            // Calculate sun position using parabola equation: y = -a(x-h)² + k
+            const width = window.innerWidth;
+            const height = window.innerHeight;
             
-            moonProgress = this.calculateProgress(
-                adjustedTime,
-                this.sunsetTime,
-                this.moonPeakTime,
-                this.moonsetTime + 1440,
-                true
-            );
-        } else {
-            moonProgress = simulatedMinutes < this.sunsetTime ? 0 : 1;
-        }
-
-        // Update positions
-        if (!isNightTransition) {
+            const sunX = -30 + (width + 60) * cycleProgress;
+            
+            const topMargin = 30; // Keep 30px from top
+            const a = 2 * (height - topMargin) / (width * width); // Controls parabola width
+            const h = width / 2;  // Peak is at center of screen
+            const k = height - topMargin * 4; // Peak is 30px from top
+            const normalizedX = sunX + 30;
+            const sunY = -a * Math.pow(normalizedX - h, 2) + k;
+            
+            this.sun.style.transform = `translate(${sunX}px, ${-sunY}px)`;
             this.sun.style.display = 'block';
             this.moon.style.display = 'none';
             
-            const { x, y } = this.calculateParabolicPosition(sunProgress, sunHeight);
-            this.sun.style.transform = `translate(${x}px, ${-y}px)`;
-            
-            if (sunProgress > 0.9) {
-                this.moon.style.transform = 'translate(0, 0)';
-            }
+            this.sky.classList.remove('sky-day');
+            this.sky.classList.add('sky-night');
+            this.starContainer.style.display = 'none';
         } else {
-            this.sun.style.display = 'none';
+            // Calculate moon position using same parabola
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            
+            const moonX = -30 + (width + 60) * cycleProgress;
+            
+            const topMargin = 30;
+            const a = 2 * (height - topMargin) / (width * width);
+            const h = width / 2;
+            const k = height - topMargin * 4;
+            const normalizedX = moonX + 30;
+            const moonY = -a * Math.pow(normalizedX - h, 2) + k;
+            
+            this.moon.style.transform = `translate(${moonX}px, ${-moonY}px)`;
             this.moon.style.display = 'block';
+            this.sun.style.display = 'none';
             
-            const { x, y } = this.calculateParabolicPosition(moonProgress, moonHeight);
-            this.moon.style.transform = `translate(${x}px, ${-y}px)`;
-            
-            if (moonProgress > 0.9) {
-                this.sun.style.transform = 'translate(0, 0)';
-            }
-        }
-    }
-
-    updateSkyColor(simulatedMinutes, timestamp) {
-        const container = document.getElementById('scene-container');
-        const currentTime = timestamp / 1000; // Convert to seconds
-
-        // Check if we're at sunrise or sunset
-        const isAtSunrise = simulatedMinutes >= this.sunriseTime && simulatedMinutes <= this.sunriseTime + 1;
-        const isAtSunset = simulatedMinutes >= this.sunsetTime && simulatedMinutes <= this.sunsetTime + 1;
-
-        // Start transition if we just hit sunrise or sunset
-        if ((isAtSunrise || isAtSunset) && !this.lastTransitionTime) {
-            this.lastTransitionTime = currentTime;
+            this.sky.classList.remove('sky-night');
+ 
+            this.sky.classList.remove('sky-night');
+            this.sky.classList.add('sky-day');
+            this.starContainer.style.display = 'block';
         }
 
-        // Calculate transition progress if we're in a transition
-        if (this.lastTransitionTime) {
-            const progress = (currentTime - this.lastTransitionTime) / this.transitionDuration;
+        // Update clock
+        const totalMinutes = isDaytime ? 
+            Math.floor((cycleProgress * 720)) : // 0:00 to 12:00 during day
+            Math.floor((cycleProgress * 720) + 720); // 12:00 to 24:00 during night
+        this.updateClock(totalMinutes);
 
-            if (progress >= 1) {
-                // Transition complete
-                this.lastTransitionTime = null;
-                container.style.backgroundColor = isAtSunrise ? this.dayColor : this.nightColor;
-            } else {
-                // During transition
-                if (isAtSunrise || (this.lastTransitionTime && simulatedMinutes < this.sunsetTime)) {
-                    // Sunrise transition: night -> day
-                    const color = this.interpolateColor(this.nightColor, this.dayColor, progress);
-                    container.style.backgroundColor = color;
-                } else {
-                    // Sunset transition: day -> night
-                    const color = this.interpolateColor(this.dayColor, this.nightColor, progress);
-                    container.style.backgroundColor = color;
-                }
-            }
-        } else if (!this.lastTransitionTime) {
-            // Outside of transition periods
-            if (simulatedMinutes >= this.sunriseTime && simulatedMinutes < this.sunsetTime) {
-                container.style.backgroundColor = this.dayColor;
-            } else {
-                container.style.backgroundColor = this.nightColor;
-            }
-        }
-
-        // Update cloud colors based on current sky color
-        const isNight = simulatedMinutes < this.sunriseTime || simulatedMinutes >= this.sunsetTime;
-        document.querySelectorAll('.cloud').forEach(cloud => {
-            cloud.style.backgroundColor = isNight ? '#404040' : 'white';
-        });
-    }
-
-    animateScene(timestamp) {
-        if (!this.startTime) this.startTime = timestamp;
-        if (!this.isPlaying) {
-            requestAnimationFrame(this.animateScene.bind(this));
-            return;
-        }
-
-        const progress = (timestamp - this.startTime) / 1000;
-        const dayNightCycle = (progress % 120) / 60;
-        
-        const simulatedMinutes = (dayNightCycle * 720) % 1440;
-        this.updateClock(simulatedMinutes);
-
-        // Update celestial positions
-        this.updateCelestialPositions(simulatedMinutes);
-
-        // Update sky color with smooth transition
-        this.updateSkyColor(simulatedMinutes, timestamp);
-
-        // Update night elements
-        const isNight = simulatedMinutes < this.sunriseTime || simulatedMinutes >= this.sunsetTime;
-        
-        // Animate windows
-        if (isNight) {
-            document.querySelectorAll('.window').forEach(window => {
-                if (Math.random() < 0.01) {
-                    window.style.background = 'rgba(255, 255, 150, 0.8)';
-                }
-            });
-        }
-
-        // Animate streetlamps
-        document.querySelectorAll('.lamp-light').forEach(light => {
-            light.classList.toggle('lamp-night', isNight);
-        });
-
-        // Animate stars
-        document.querySelectorAll('.star').forEach(star => {
-            star.style.display = isNight ? 'block' : 'none';
-            if (isNight && Math.random() < 0.05) {
-                star.style.opacity = Math.random() < 0.5 ? '1' : '0';
-            }
-        });
+        // Update nighttime flag
+        this.isDark = !isDaytime;
 
         // Animate UFO
         if (isNight && Math.random() < 0.001) {
