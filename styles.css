@@ -358,7 +358,7 @@ body {
     border-radius: 4px 4px 0 0;
     border: 1px solid #555555;
     bottom: 0;
-    box-shadow: 3px -3 10px 5px #232324;
+    box-shadow: 2px 2px 5px 2px #232324;
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
@@ -373,7 +373,7 @@ body {
 
 .scene-night .building{
     border: 1px solid #555555;
-    box-shadow: 3px -3 10px 5px #232324;
+    box-shadow: 2px 2px 5px 2px #232324;
 }
 
 .scene-day .building {
