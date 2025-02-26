@@ -8,55 +8,11 @@ body {
     overflow: hidden;
 }
 
-@keyframes sunset {
-    0% {
-        background-color: #87ceeb;  
-    }
-    33% {
-        background-color: #3535b2;
-    }
-    66% {
-        background-color: #171771;
-    }
-    100% {
-        background-color: #18182b;
-    }
-}
-
-@keyframes dawn {
-    0% {
-        background-color: #18182b;
-    }
-    33% {
-        background-color: #171771;
-    }
-    66% {
-        background-color: #3535b2;
-    }
-    100% {
-        background-color: #87ceeb;  
-    }
-}
-
-@keyframes twinkle {
-    0% { opacity: 0.3; }
-    100% { opacity: 1; }
-}
-
-@keyframes float {
-    0% {
-        transform: translateX(0);
-    }
-    100% {
-        transform: translateX(-120vw);
-    }
-}
-
 #scene-container {
-    background: #87ceeb;
+    background: #87CEEB;
     height: 100vh;
     position: relative;
-    transition: background-color 2s ease;
+    transition: background 2s ease;
     width: 100vw;
 }
 
@@ -64,6 +20,7 @@ body {
     position: absolute;
     right: 20px;
     top: 20px;
+    width: 160px;
     z-index: 1000;
 }
 
@@ -141,30 +98,250 @@ body {
     transform: translate(-50%, -50%);
 }
 
-#sky {
-    height: 100%;
-    overflow: hidden;
-    position: relative;
+.sky-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
+    height: 100%;
+    opacity: 1;
+    transition: opacity 10s ease;
 }
 
-.sky-day {
-    background-color: skyblue;
-    transition: background-color 2s ease;
-    animation: dawn 2s ease-in-out forwards;
+.sky-layer.night {
+    background: linear-gradient(to bottom, #1a1a2e, #16213e);
+    z-index: 4;
 }
 
-.sky-night {
-    background-color: #1a1a2e;
-    transition: background-color 2s ease;
-    animation: sunset 2s ease-in-out forwards;
+.sky-layer.dawn {
+    background: linear-gradient(to bottom, #FFB6C1, #87CEEB);
+    z-index: 3;
+}
+
+.sky-layer.day {
+    background: linear-gradient(to bottom, #87CEEB, #4A90E2);
+    z-index: 2;
+}
+
+.sky-layer.dusk {
+    background: linear-gradient(to bottom, #FF7F50, #2b2b4a);
+    z-index: 1;
+}
+
+.sky-layer.hidden {
+    opacity: 0;
+}
+
+#stars {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 5;
+    pointer-events: none;
+    transition: opacity 5s ease;
+}
+
+.star {
+    position: absolute;
+    background-color: #fff;
+    border-radius: 50%;
+    animation: twinkle 1s infinite alternate;
+}
+
+#ufo {
+    display: none;
+    height: 40px;
+    position: absolute;
+    right: -80px;
+    width: 80px;
+}
+
+#cityscape {
+    position: relative;
+    z-index: 10;
+}
+
+.building {
+    background-color: #808080;
+    margin: 0 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 120px;
+    padding: 15px;
+    filter: brightness(1);
+    transition: filter 10s ease;
+    position: relative;
+    z-index: 10;
+}
+
+.night .building {
+    filter: brightness(0.4);
+}
+
+.dawn .building {
+    filter: brightness(0.7);
+}
+
+.day .building {
+    filter: brightness(1);
+}
+
+.dusk .building {
+    filter: brightness(0.6);
+}
+
+.window-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    height: fit-content;
+    width: fit-content;
+}
+
+.window-row {
+    display: flex;
+    gap: 10px;
+}
+
+.window {
+    width: 20px;
+    height: 30px;
+    background: linear-gradient(135deg, #e6f3ff 0%, #c1e3ff 50%, #a1d6ff 100%);
+    transition: all 10s ease;
+    box-shadow: none;
+    position: relative;
+    z-index: 11;
+}
+
+.night .window {
+    background-color: rgba(255, 255, 100, 1);
+    box-shadow: 0 0 10px rgba(255, 255, 100, 0.6);
+}
+
+.night .window.off {
+    background-color: rgba(40, 40, 40, 0.6);
+    box-shadow: none;
+}
+
+.dawn .window,
+.day .window {
+    background: linear-gradient(135deg, #e6f3ff 0%, #c1e3ff 50%, #a1d6ff 100%);
+    box-shadow: none;
+}
+
+.dusk .window {
+    background-color: rgba(255, 255, 100, 0.7);
+    box-shadow: 0 0 5px rgba(255, 255, 100, 0.4);
+}
+
+.cloud-container {
+    position: relative;
+    z-index: 12;
+}
+
+.cloud {
+    position: absolute;
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.cloud-part {
+    position: absolute;
+    background: #fff;
+    border-radius: 50%;
+}
+
+.cloud::before,
+.cloud::after {
+    content: '';
+    position: absolute;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 50%;
+}
+
+.cloud::before {
+    width: 60%;
+    height: 60%;
+    top: 20%;
+    left: 15%;
+}
+
+.cloud::after {
+    width: 55%;
+    height: 55%;
+    top: 25%;
+    right: 15%;
+}
+
+.streetlamp {
+    background: #404040;
+    bottom: 0;
+    height: 100px;
+    position: absolute;
+    width: 6px;
+    z-index:30;
+}
+
+.street-lamp {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 40px;
+    background-color: #333;
+}
+
+.lamp-light {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 15px;
+    height: 15px;
+    background-color: #FFFFFF;
+    border-radius: 50%;
+    transition: all 0.5s ease;
+}
+
+.lamp-night {
+    background: #FFD700 !important;
+    box-shadow: 0px 16px 20px 7px rgba(255,215,0,0.80);
+    transition: background-color 1s ease;
+}
+
+#sun, #moon {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    z-index: 5;
+    transition: transform 10s ease, opacity 10s ease;
+}
+
+.moon, .sun {
+    transition: transform 10s ease;
+}
+
+.celestial-hidden {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 10s ease;
+}
+
+.celestial-visible {
+    opacity: 1;
+    pointer-events: auto;
+    transition: opacity 10s ease;
 }
 
 #sun {
     background: #FFD700;
     border-radius: 50%;
     bottom: 0;
-    height: 60px;
     left: -60px;
     position: absolute;
     z-index:0;
@@ -196,121 +373,28 @@ body {
     z-index:0
 }
 
-.cloud-container {
+.star-container {
     position: absolute;
-    transition: background-color 2s ease;
-    will-change: transform;
-}
-
-.cloud {
-    position: absolute;
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 50px;
-    z-index: 2;
-    filter: blur(3px);
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
-    transition: transform 0.1s linear;
-}
-
-.cloud::before,
-.cloud::after {
-    content: '';
-    position: absolute;
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 50%;
-}
-
-.cloud::before {
-    width: 60%;
-    height: 60%;
-    top: 20%;
-    left: 15%;
-}
-
-.cloud::after {
-    width: 55%;
-    height: 55%;
-    top: 25%;
-    right: 15%;
-}
-
-#stars {
-    position: fixed;
-    top: 0;
-    left: 0;
     width: 100%;
     height: 100%;
-    z-index: 1;
-    pointer-events: none;
+    transition: opacity 1s ease;
 }
 
 .star {
     position: absolute;
-    background-color: #fff;
+    width: 2px;
+    height: 2px;
+    background-color: white;
     border-radius: 50%;
-    animation: twinkle 1s infinite alternate;
+    animation: twinkle 1.5s infinite alternate ease-in-out;
 }
 
-#ufo {
-    display: none;
-    height: 40px;
+.cloud {
     position: absolute;
-    right: -80px;
-    width: 80px;
-}
-
-#cityscape {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: flex-end;
-    gap: 5px;
-    padding: 0 20px;
-    box-sizing: border-box;
-    z-index: 2;
-}
-
-.building {
-    background-color: #808080;
-    margin: 0 5px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-width: 120px;
-    padding: 15px;
-}
-
-.window-container {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    height: fit-content;
-    width: fit-content;
-}
-
-.window-row {
-    display: flex;
-    gap: 10px;
-}
-
-.window {
-    width: 20px;
-    height: 30px;
-    background: linear-gradient(135deg, #e6f3ff 0%, #c1e3ff 50%, #a1d6ff 100%);
-    margin: 0;
-}
-
-.window-night {
-    background-color: #2a2a2a;
-}
-
-.window-night-on {
-    background-color: #fff4b4;
-    box-shadow: 0 0 10px rgba(255, 244, 180, 0.8);
+    background-color: white;
+    border-radius: 20px;
+    opacity: 0.8;
+    animation: float 20s linear infinite;
 }
 
 .house {
@@ -388,12 +472,6 @@ body {
     transition: all 0.5s ease;
 }
 
-.lamp-night {
-    background: #FFD700 !important;
-    box-shadow: 0px 16px 20px 7px rgba(255,215,0,0.80);
-    transition: background-color 1s ease;
-}
-
 #controls {
     position: fixed;
     top: 20px;
@@ -405,6 +483,12 @@ body {
     z-index: 1000;
 }
 
+.control-buttons{
+    display:flex;
+    flex-direction: row;
+    gap: 10px;
+}
+
 button {
     padding: 8px 16px;
     border: none;
@@ -412,6 +496,7 @@ button {
     background: rgba(255, 255, 255, 0.9);
     cursor: pointer;
     font-size: 14px;
+    width: 120px;
     transition: background-color 0.3s;
 }
 

@@ -1,68 +1,69 @@
 class CityScene {
     constructor() {
-        // Wait for DOM to be ready
-        document.addEventListener('DOMContentLoaded', () => {
+        this.totalCycleDuration = 14400; // 40 seconds for full day/night cycle
+        // Start at midnight (0 minutes) with an offset to position moon at center
+        this.startTime = Date.now() - (this.totalCycleDuration * (360/1440)); // Position for midnight
+        this.totalPausedTime = 0;
+        this.lastPauseTime = null;
+        this.isPlaying = false;
+        this.minClouds = 3;
+        this.clouds = [];
+        this.windowStates = new Map(); // Track window states through the night
+        this.lastStateUpdate = null;
+
+        // Time periods in minutes (1440 total)
+        this.timePeriods = {
+            DAWN_START: 300,    // 5 AM
+            DAWN_END: 420,      // 7 AM
+            DAY_START: 450,     // 7 AM
+            DAY_END: 1020,      // 5 PM
+            DUSK_START: 1050,   // 5 PM
+            DUSK_END: 1140,     // 7 PM
+        };
+
+        // Calculate how many real milliseconds each game minute takes
+        this.millisecondsPerGameMinute = this.totalCycleDuration / 1440;
+
+        // Wait for DOM to be ready before initializing
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.initializeScene());
+        } else {
             this.initializeScene();
-        });
+        }
     }
 
     initializeScene() {
         // Initialize DOM elements
-        this.cityscape = document.getElementById('cityscape');
+        this.sceneContainer = document.getElementById('scene-container');
         this.sky = document.getElementById('sky');
+        this.starContainer = document.getElementById('stars');
         this.sun = document.getElementById('sun');
         this.moon = document.getElementById('moon');
-        this.starContainer = document.getElementById('stars');
+        this.cloudContainer = document.getElementById('clouds');
+        this.cityscape = document.getElementById('cityscape');
+        
+        // Controls
+        this.playPauseButton = document.getElementById('playPause');
+        this.toggleClockButton = document.getElementById('toggleClock');
         this.digitalClock = document.getElementById('digital-clock');
-        this.analogClock = document.querySelector('.analog-clock');
-        this.hourHand = document.querySelector('.hour-hand');
-        this.minuteHand = document.querySelector('.minute-hand');
+        this.analogClock = document.getElementById('analog-clock');
+        this.hourHand = this.analogClock.querySelector('.hour-hand');
+        this.minuteHand = this.analogClock.querySelector('.minute-hand');
 
         // Initialize state
         this.clouds = [];
-        this.minClouds = 3;
-        this.isPlaying = false;
-        this.isDark = false;
-        this.startTime = Date.now();
-        this.pausedTime = 0;
-        this.totalPausedTime = 0;
-        this.cloudDirection = Math.random() < 0.5 ? 'left' : 'right';
-        this.baseCloudSpeed = 0.5; // Reduced speed for smoother movement
         
-        // 24 hour cycle in milliseconds
-        this.totalCycleDuration = 30000; // 30 seconds = 24 hours
-        
-        // Day is from 6am to 8pm (14 hours)
-        const dayHours = 14;
-        const totalHours = 24;
-        this.dayDuration = (dayHours / totalHours) * this.totalCycleDuration;
-        this.nightDuration = this.totalCycleDuration - this.dayDuration;
-
-        // Create clock markers
-        for (let i = 0; i < 12; i++) {
-            const marker = document.createElement('div');
-            marker.className = 'clock-marker';
-            const angle = (i * 30) - 90; // -90 to start at 12 o'clock
-            const radius = 45; // Slightly inside the clock face
-            const x = 50 + radius * Math.cos(angle * Math.PI / 180);
-            const y = 50 + radius * Math.sin(angle * Math.PI / 180);
-            marker.style.left = `${x}%`;
-            marker.style.top = `${y}%`;
-            this.analogClock.appendChild(marker);
-        }
-
-        // Setup the scene
+        // Setup scene components
         this.setupScene();
         this.setupEventListeners();
         
-        // Create initial clouds
+        // Initialize clouds at random positions
         for (let i = 0; i < this.minClouds; i++) {
             this.createCloud(true);
         }
-        
-        // Start the animation
-        this.isPlaying = true;
-        requestAnimationFrame(this.animateScene.bind(this));
+
+        // Start animation
+        this.play();
     }
 
     setupEventListeners() {
@@ -139,7 +140,7 @@ class CityScene {
 
     createBuildings() {
         const buildingCount = Math.floor(Math.random() * 4) + 8; // 8-11 buildings
-        const containerWidth = window.innsunerWidth;
+        const containerWidth = window.innerWidth;
         
         for (let i = 0; i < buildingCount; i++) {
             const building = document.createElement('div');
@@ -196,12 +197,8 @@ class CityScene {
 
     createWindow(building) {
         const window = document.createElement('div');
-        window.className = 'window';
-        
-        // Add data attribute for state tracking
-        window.dataset.state = 'day';
-        window.dataset.lastStateChange = Date.now().toString();
-        
+        window.className = 'window day';
+        window.dataset.windowId = Math.random().toString(36).substr(2, 9); // Assign a unique ID
         building.appendChild(window);
         return window;
     }
@@ -257,55 +254,66 @@ class CityScene {
     }
 
     createCloud(isInitial = false) {
-        const cloud = document.createElement('div');
-        cloud.className = 'cloud';
+        const cloudCluster = document.createElement('div');
+        cloudCluster.className = 'cloud';
         
-        const width = Math.random() * 100 + 100; // Cloud width between 100-200px
-        cloud.style.width = `${width}px`;
-        cloud.style.height = `${width * 0.6}px`;
+        // Random cloud properties
+        const baseSize = Math.random() * 100 + 50; // 50-150px
+        const height = Math.random() * 200 + 50; // 50-250px from top
         
-        // Set initial position
-        const startX = isInitial ? Math.random() * window.innerWidth : 
-                      (this.cloudDirection === 'left' ? window.innerWidth : -width);
-        const y = Math.random() * (window.innerHeight * 0.3); // Top 30% of screen
+        // Create 3-5 cloud parts
+        const numParts = Math.floor(Math.random() * 3) + 3;
         
-        cloud.style.left = `${startX}px`;
-        cloud.style.top = `${y}px`;
-        
-        // Set cloud speed
-        const speed = (Math.random() * 0.3 + this.baseCloudSpeed);
-        cloud.dataset.speed = speed;
-        cloud.dataset.direction = this.cloudDirection;
-        
-        this.sky.appendChild(cloud);
-        this.clouds.push(cloud);
-    }
-
-    moveCloud(cloud) {
-        const speed = parseFloat(cloud.dataset.speed);
-        const direction = cloud.dataset.direction;
-        const currentX = parseFloat(cloud.style.left);
-        
-        let newX;
-        if (direction === 'left') {
-            newX = currentX - speed;
-            if (newX < -parseFloat(cloud.style.width)) {
-                cloud.remove();
-                this.clouds = this.clouds.filter(c => c !== cloud);
-                this.createCloud(); // Create a new cloud to replace the removed one
-                return;
-            }
-        } else {
-            newX = currentX + speed;
-            if (newX > window.innerWidth) {
-                cloud.remove();
-                this.clouds = this.clouds.filter(c => c !== cloud);
-                this.createCloud(); // Create a new cloud to replace the removed one
-                return;
-            }
+        for (let i = 0; i < numParts; i++) {
+            const part = document.createElement('div');
+            part.className = 'cloud-part';
+            
+            // Random size and position for each part
+            const partSize = baseSize * (0.6 + Math.random() * 0.4);
+            const xOffset = (i - numParts/2) * (baseSize * 0.4);
+            const yOffset = (Math.random() - 0.5) * (baseSize * 0.2);
+            
+            part.style.width = `${partSize}px`;
+            part.style.height = `${partSize}px`;
+            part.style.left = `${xOffset}px`;
+            part.style.top = `${yOffset}px`;
+            part.style.filter = 'blur(3px)';
+            
+            cloudCluster.appendChild(part);
         }
         
-        cloud.style.left = `${newX}px`;
+        // Position the whole cloud cluster
+        cloudCluster.style.top = `${height}px`;
+        
+        if (isInitial) {
+            const randomX = Math.random() * window.innerWidth;
+            cloudCluster.style.left = `${randomX}px`;
+        } else {
+            cloudCluster.style.left = '-200px';
+        }
+
+        // Random speed within 30% of base speed
+        const baseSpeed = 20; // Base duration in seconds
+        const speedVariation = baseSpeed * 0.3;
+        const duration = baseSpeed + (Math.random() * 2 - 1) * speedVariation;
+        cloudCluster.style.setProperty('--float-duration', `${duration}s`);
+
+        // Add animation end listener
+        cloudCluster.addEventListener('animationend', () => {
+            cloudCluster.remove();
+            this.clouds = this.clouds.filter(c => c !== cloudCluster);
+            if (this.clouds.length < this.minClouds) {
+                this.createCloud();
+            }
+        });
+
+        this.cloudContainer.appendChild(cloudCluster);
+        this.clouds.push(cloudCluster);
+        
+        // Stagger animation start
+        setTimeout(() => {
+            cloudCluster.classList.add('floating');
+        }, isInitial ? Math.random() * 2000 : 0);
     }
 
     setupCelestialBodies() {
@@ -414,6 +422,7 @@ class CityScene {
         const displayHours = hours % 12 || 12;
         document.getElementById('digital-clock').textContent = 
             `${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+        document.getElementById('millisecond-tracking').textContent = totalMinutes;
 
         // Update analog clock
         const hourHand = document.querySelector('.hour-hand');
@@ -428,50 +437,33 @@ class CityScene {
     }
 
     updateWindows(cycleMinutes) {
-        const windows = document.querySelectorAll('.window');
-        const currentTime = Date.now();
+        const isNight = cycleMinutes >= 1200 || cycleMinutes < 360; // 8 PM to 6 AM
         
-        windows.forEach(window => {
-            const lastChange = parseInt(window.dataset.lastStateChange);
-            const state = window.dataset.state;
+        document.querySelectorAll('.window').forEach(window => {
+            const windowId = window.dataset.windowId;
             
-            // Day to Night transition (8 PM = 1200 minutes)
-            if (cycleMinutes >= 1200 && state === 'day') {
-                window.dataset.state = 'night';
-                window.dataset.lastStateChange = currentTime.toString();
-                window.classList.add('window-night');
+            if (isNight) {
+                window.classList.add('night');
+                window.classList.remove('day');
                 
-                // 80% chance to turn light on
-                if (Math.random() < 0.8) {
-                    window.classList.add('window-night-on');
+                // Check if we already decided this window's state for tonight
+                if (!this.windowStates.has(windowId)) {
+                    // 30% chance of light being on
+                    const lightOn = Math.random() < 0.3;
+                    this.windowStates.set(windowId, lightOn);
                 }
-            }
-            // Night to Day transition (6 AM = 360 minutes)
-            else if (cycleMinutes >= 360 && cycleMinutes < 361 && state === 'night') {
-                window.dataset.state = 'day';
-                window.dataset.lastStateChange = currentTime.toString();
-                window.classList.remove('window-night', 'window-night-on');
-            }
-            // Random light changes during night (1 AM - 3 AM = 60-180 minutes)
-            else if (state === 'night' && cycleMinutes >= 60 && cycleMinutes <= 180) {
-                const timeSinceLastChange = currentTime - lastChange;
                 
-                // Only allow changes every 2 seconds
-                if (timeSinceLastChange > 2000) {
-                    if (window.classList.contains('window-night-on')) {
-                        // 0.5% chance to turn off
-                        if (Math.random() < 0.005) {
-                            window.classList.remove('window-night-on');
-                            window.dataset.lastStateChange = currentTime.toString();
-                        }
-                    } else {
-                        // 0.1% chance to turn on
-                        if (Math.random() < 0.001) {
-                            window.classList.add('window-night-on');
-                            window.dataset.lastStateChange = currentTime.toString();
-                        }
-                    }
+                // Apply stored state
+                if (this.windowStates.get(windowId)) {
+                    window.classList.add('light-on');
+                } else {
+                    window.classList.remove('light-on');
                 }
+            } else {
+                // Reset window states during day
+                window.classList.remove('night', 'light-on');
+                window.classList.add('day');
+                this.windowStates.delete(windowId);
             }
         });
     }
@@ -479,10 +471,19 @@ class CityScene {
     togglePlay() {
         if (this.isPlaying) {
             this.isPlaying = false;
-            this.pausedTime = Date.now();
+            this.lastPauseTime = Date.now();
         } else {
-            this.totalPausedTime += Date.now() - this.pausedTime;
+            this.play();
+        }
+    }
+
+    play() {
+        if (!this.isPlaying) {
             this.isPlaying = true;
+            if (this.lastPauseTime) {
+                this.totalPausedTime += Date.now() - this.lastPauseTime;
+                this.lastPauseTime = null;
+            }
             requestAnimationFrame(this.animateScene.bind(this));
         }
     }
@@ -493,246 +494,177 @@ class CityScene {
         const currentTime = Date.now();
         const adjustedTime = currentTime - this.totalPausedTime;
         const elapsed = (adjustedTime - this.startTime) % this.totalCycleDuration;
-        
-        // Calculate current time in minutes (0-1440)
-        const totalMinutes = 1440; // 24 hours
-        const cycleMinutes = (elapsed / this.totalCycleDuration) * totalMinutes;
-        
-        // Time constants (in minutes)
-        const duskStart = 1200;    // 8:00 PM
-        const duskEnd = 1260;      // 9:00 PM
-        const moonriseTime = 1260; // 9:00 PM
-        const moonsetTime = 300;   // 5:00 AM
-        const dawnStart = 300;     // 5:00 AM
-        const dawnEnd = 360;       // 6:00 AM
+        const cycleMinutes = (elapsed / this.totalCycleDuration) * 1440;
 
-        // Calculate transition progress
-        const duskProgress = (cycleMinutes >= duskStart && cycleMinutes <= duskEnd) 
-            ? (cycleMinutes - duskStart) / (duskEnd - duskStart)
-            : (cycleMinutes >= duskEnd ? 1 : 0);
+        // Throttle state updates to every 100ms
+        if (!this.lastStateUpdate || currentTime - this.lastStateUpdate >= 100) {
+            this.updateTimeBasedClasses(cycleMinutes);
+            this.lastStateUpdate = currentTime;
+        }
 
-        const dawnProgress = (cycleMinutes >= dawnStart && cycleMinutes <= dawnEnd)
-            ? (cycleMinutes - dawnStart) / (dawnEnd - dawnStart)
-            : (cycleMinutes >= dawnEnd || cycleMinutes < dawnStart ? 0 : 1);
-
-        // Update windows
         this.updateWindows(cycleMinutes);
-        
-        // Move clouds
-        this.clouds.forEach(cloud => this.moveCloud(cloud));
-        
-        // Create new clouds if needed
-        if (this.clouds.length < this.minClouds) {
-            this.createCloud();
-        }
-
-        const width = window.innerWidth;
-        const height = window.innerHeight;
-        const topMargin = 30;
-        const a = 2 * (height - topMargin) / (width * width);
-        const h = width / 2;
-        const k = height - topMargin * 4;
-
-        // Night time (8 PM - 6 AM)
-        if (cycleMinutes >= duskStart || cycleMinutes < dawnEnd) {
-            // Calculate moon position
-            let moonProgress = 0;
-            
-            if (cycleMinutes >= moonriseTime) {
-                // After moonrise until midnight
-                const minutesSinceMoonrise = cycleMinutes - moonriseTime;
-                const totalMoonMinutes = moonsetTime + (1440 - moonriseTime);
-                moonProgress = minutesSinceMoonrise / totalMoonMinutes;
-            } else if (cycleMinutes < moonsetTime) {
-                // After midnight until moonset
-                const minutesSinceMidnight = cycleMinutes;
-                const totalMoonMinutes = moonsetTime + (1440 - moonriseTime);
-                moonProgress = (minutesSinceMidnight + (1440 - moonriseTime)) / totalMoonMinutes;
-            }
-
-            // Only show moon between moonrise and moonset
-            if (cycleMinutes >= moonriseTime || cycleMinutes < moonsetTime) {
-                const moonX = -30 + (width + 60) * moonProgress;
-                const normalizedX = moonX + 30;
-                const moonY = -a * Math.pow(normalizedX - h, 2) + k;
-                
-                this.moon.style.transform = `translate(${moonX}px, ${-moonY}px)`;
-                this.moon.style.display = 'block';
-                this.moon.style.opacity = 1;
-            } else {
-                this.moon.style.display = 'none';
-            }
-
-            // Handle dusk transition
-            if (cycleMinutes >= duskStart && cycleMinutes <= duskEnd) {
-                // Fade out sun during dusk
-                this.sun.style.opacity = 1 - duskProgress;
-                this.sun.style.display = 'block';
-                
-                // Transition sky color
-                this.sky.style.backgroundColor = this.interpolateColor(
-                    'skyblue',
-                    '#1a1a2e',
-                    duskProgress
-                );
-                
-                // Fade in stars
-                this.starContainer.style.display = 'block';
-                this.starContainer.style.opacity = duskProgress;
-                
-                // Gradually turn on street lamps
-                document.querySelectorAll('.lamp-light').forEach(light => {
-                    const intensity = 0.8 * duskProgress;
-                    light.style.boxShadow = `0 0 20px ${10 * duskProgress}px rgba(255, 244, 180, ${intensity})`;
-                    light.style.backgroundColor = `rgba(255, 244, 180, ${intensity})`;
-                });
-            } else if (cycleMinutes >= dawnStart && cycleMinutes <= dawnEnd) {
-                // Handle dawn transition
-                this.sun.style.opacity = dawnProgress;
-                this.sun.style.display = 'block';
-                
-                // Transition sky color
-                this.sky.style.backgroundColor = this.interpolateColor(
-                    '#1a1a2e',
-                    'skyblue',
-                    dawnProgress
-                );
-                
-                // Fade out stars
-                this.starContainer.style.opacity = 1 - dawnProgress;
-                
-                // Gradually turn off street lamps
-                document.querySelectorAll('.lamp-light').forEach(light => {
-                    const intensity = 0.8 * (1 - dawnProgress);
-                    light.style.boxShadow = `0 0 20px ${10 * (1 - dawnProgress)}px rgba(255, 244, 180, ${intensity})`;
-                    light.style.backgroundColor = `rgba(255, 244, 180, ${intensity})`;
-                });
-            } else {
-                // Full night
-                this.sun.style.display = 'none';
-                this.starContainer.style.display = 'block';
-                this.starContainer.style.opacity = 1;
-                
-                document.querySelectorAll('.lamp-light').forEach(light => {
-                    light.style.boxShadow = '0 0 20px 10px rgba(255, 244, 180, 0.8)';
-                    light.style.backgroundColor = '#fff4b4';
-                });
-            }
-        } else { // Day time (6 AM - 8 PM)
-            const dayProgress = cycleMinutes / duskStart;
-            const sunX = -30 + (width + 60) * dayProgress;
-            const normalizedX = sunX + 30;
-            const sunY = -a * Math.pow(normalizedX - h, 2) + k;
-            
-            this.sun.style.transform = `translate(${sunX}px, ${-sunY}px)`;
-            this.sun.style.opacity = 1;
-            this.sun.style.display = 'block';
-            this.moon.style.display = 'none';
-            
-            this.sky.style.backgroundColor = 'skyblue';
-            this.starContainer.style.display = 'none';
-            
-            document.querySelectorAll('.lamp-light').forEach(light => {
-                light.style.boxShadow = 'none';
-                light.style.backgroundColor = '#FFFFFF';
-            });
-        }
-
-        // Update clock
-        const displayMinutes = Math.floor(cycleMinutes);
-        this.updateClock(displayMinutes);
-
-        // Update nighttime flag
-        this.isDark = cycleMinutes >= duskStart || cycleMinutes < dawnEnd;
+        this.updateCelestialObjects(cycleMinutes);
+        this.updateClock(Math.floor(cycleMinutes));
 
         if (this.isPlaying) {
             requestAnimationFrame(this.animateScene.bind(this));
         }
     }
 
-    interpolateColor(color1, color2, factor) {
-        // Convert colors to RGB
-        const c1 = this.hexToRgb(color1);
-        const c2 = this.hexToRgb(color2);
+    updateTimeBasedClasses(cycleMinutes) {
+        // Normalize minutes to 24-hour cycle
+        cycleMinutes = cycleMinutes % 1440;
         
-        // Interpolate each component
-        const r = Math.round(c1.r + (c2.r - c1.r) * factor);
-        const g = Math.round(c1.g + (c2.g - c1.g) * factor);
-        const b = Math.round(c1.b + (c2.b - c1.b) * factor);
+        // Get current and next states
+        const currentState = this.getCurrentTimeState(cycleMinutes);
+        const nextState = this.getNextTimeState(currentState);
         
-        return `rgb(${r}, ${g}, ${b})`;
-    }
-
-    hexToRgb(color) {
-        // Handle named colors
-        if (color === 'skyblue') return { r: 135, g: 206, b: 235 };
-        
-        // Handle hex colors
-        const hex = color.replace('#', '');
-        return {
-            r: parseInt(hex.substr(0, 2), 16),
-            g: parseInt(hex.substr(2, 2), 16),
-            b: parseInt(hex.substr(4, 2), 16)
-        };
-    }
-
-    spawnUFO() {
-        if (this.ufo) return;
-        
-        const ufo = document.createElement('div');
-        ufo.className = 'ufo';
-        
-        // UFO body styles
-        ufo.style.width = '80px';
-        ufo.style.height = '40px';
-        ufo.style.position = 'absolute';
-        ufo.style.zIndex = '5'; // Above buildings
-        
-        // Random starting position: either left or right side
-        const startFromLeft = Math.random() < 0.5;
-        const startX = startFromLeft ? -100 : window.innerWidth + 100;
-        const endX = startFromLeft ? window.innerWidth + 100 : -100;
-        
-        // Random vertical position in top 40% of screen
-        const minY = 50;
-        const maxY = window.innerHeight * 0.4;
-        let currentY = Math.random() * (maxY - minY) + minY;
-        
-        // Random speed between 5 and 15 seconds for full crossing
-        const duration = (Math.random() * 10 + 5) * 1000;
-        const startTime = Date.now();
-        
-        const animate = () => {
-            const elapsed = Date.now() - startTime;
-            const progress = elapsed / duration;
+        // Update sky layers
+        const layers = document.querySelectorAll('.sky-layer');
+        layers.forEach(layer => {
+            const state = layer.classList.contains('night') ? 'night' :
+                         layer.classList.contains('dawn') ? 'dawn' :
+                         layer.classList.contains('day') ? 'day' : 'dusk';
             
-            if (progress >= 1) {
-                this.sky.removeChild(ufo);
-                this.ufo = null;
-                return;
+            // Current state is visible
+            if (state === currentState) {
+                layer.classList.remove('hidden');
+                layer.style.zIndex = '4';
+            }
+            // Next state is positioned just below
+            else if (state === nextState) {
+                layer.classList.add('hidden');
+                layer.style.zIndex = '3';
+            }
+            // Other states are moved to bottom
+            else {
+                layer.classList.add('hidden');
+                layer.style.zIndex = '1';
+            }
+        });
+
+        // Update scene container class for other elements (buildings, windows)
+        if (this.sceneContainer.className !== currentState) {
+            this.sceneContainer.className = currentState;
+        }
+
+        // Update celestial objects visibility
+        if (cycleMinutes >= this.timePeriods.DAWN_START && cycleMinutes < this.timePeriods.DUSK_END) {
+            this.sun.classList.add('celestial-visible');
+            this.sun.classList.remove('celestial-hidden');
+            this.moon.classList.add('celestial-hidden');
+            this.moon.classList.remove('celestial-visible');
+        } else {
+            this.sun.classList.add('celestial-hidden');
+            this.sun.classList.remove('celestial-visible');
+            this.moon.classList.add('celestial-visible');
+            this.moon.classList.remove('celestial-hidden');
+        }
+
+        // Update stars opacity
+        const starsOpacity = (cycleMinutes >= this.timePeriods.DUSK_START || cycleMinutes < this.timePeriods.DAWN_END) ? '1' : '0';
+        if (this.starContainer.style.opacity !== starsOpacity) {
+            this.starContainer.style.opacity = starsOpacity;
+        }
+    }
+
+    getNextTimeState(currentState) {
+        const states = ['night', 'dawn', 'day', 'dusk'];
+        const currentIndex = states.indexOf(currentState);
+        return states[(currentIndex + 1) % states.length];
+    }
+
+    getCurrentTimeState(cycleMinutes) {
+        // Dawn: 5 AM (300) to 7 AM (420)
+        // Day: 7 AM (420) to 5 PM (1020)
+        // Dusk: 5 PM (1020) to 7 PM (1140)
+        // Night: 7 PM (1140) to 5 AM (300)
+        
+        if (cycleMinutes >= 300 && cycleMinutes < 420) {
+            return 'dawn';
+        } else if (cycleMinutes >= 420 && cycleMinutes < 1020) {
+            return 'day';
+        } else if (cycleMinutes >= 1020 && cycleMinutes < 1140) {
+            return 'dusk';
+        } else {
+            return 'night';
+        }
+    }
+
+    updateCelestialObjects(cycleMinutes) {
+        // Normalize minutes to 24-hour cycle
+        cycleMinutes = cycleMinutes % 1440;
+        
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const topMargin = 30;
+        const orbitWidth = width + 400;
+        const startX = -200;
+
+        // Moon movement (visible from 7 PM to 7 AM)
+        if (cycleMinutes >= 1140 || cycleMinutes < 420) {
+            let moonProgress;
+            if (cycleMinutes >= 1140) {
+                moonProgress = (cycleMinutes - 1140) / 960;
+            } else {
+                moonProgress = (cycleMinutes + 300) / 960;
             }
             
-            // Linear horizontal movement
-            const x = startX + (endX - startX) * progress;
+            moonProgress = Math.max(0, Math.min(1, moonProgress));
+            const moonX = startX + (orbitWidth * moonProgress);
+            const moonY = this.calculateCelestialY(moonX + 200, width, height, topMargin);
             
-            // Add slight vertical wobble
-            const wobbleAmount = 20;
-            const wobbleSpeed = 5;
-            currentY += Math.sin(progress * Math.PI * wobbleSpeed) * wobbleAmount * (elapsed / duration);
-            currentY = Math.max(minY, Math.min(maxY, currentY));
+            this.moon.style.transform = `translate(${moonX}px, ${-moonY}px)`;
+            this.moon.classList.remove('celestial-hidden');
+            this.moon.classList.add('celestial-visible');
             
-            ufo.style.transform = `translate(${x}px, ${currentY}px)`;
-            requestAnimationFrame(animate);
-        };
-        
-        this.sky.appendChild(ufo);
-        this.ufo = ufo;
-        requestAnimationFrame(animate);
+            // Fade out moon during dawn
+            if (cycleMinutes >= 300 && cycleMinutes < 420) {
+                const fadeProgress = (cycleMinutes - 300) / 120;
+                this.moon.style.opacity = Math.max(0, 1 - fadeProgress);
+            } else {
+                this.moon.style.opacity = 1;
+            }
+        } else {
+            this.moon.classList.add('celestial-hidden');
+            this.moon.classList.remove('celestial-visible');
+        }
+
+        // Sun movement (5 AM to 7 PM)
+        if (cycleMinutes >= 300 && cycleMinutes < 1140) {
+            const sunProgress = (cycleMinutes - 300) / 840; // 14 hours of sun
+            const sunX = startX + (orbitWidth * sunProgress);
+            const sunY = this.calculateCelestialY(sunX + 200, width, height, topMargin);
+            
+            this.sun.style.transform = `translate(${sunX}px, ${-sunY}px)`;
+            this.sun.classList.remove('celestial-hidden');
+            this.sun.classList.add('celestial-visible');
+            
+            // Fade in/out sun during dawn/dusk
+            if (cycleMinutes >= 300 && cycleMinutes < 420) { // Dawn
+                const fadeProgress = (cycleMinutes - 300) / 120;
+                this.sun.style.opacity = Math.min(1, fadeProgress);
+            } else if (cycleMinutes >= 1020 && cycleMinutes < 1140) { // Dusk
+                const fadeProgress = (cycleMinutes - 1020) / 120;
+                this.sun.style.opacity = Math.max(0, 1 - fadeProgress);
+            } else {
+                this.sun.style.opacity = 1;
+            }
+        } else {
+            this.sun.classList.add('celestial-hidden');
+            this.sun.classList.remove('celestial-visible');
+        }
     }
 
-    startAnimation() {
-        requestAnimationFrame(this.animateScene.bind(this));
+    calculateCelestialY(x, width, height, topMargin) {
+        // Adjusted parabolic path for smoother arc
+        const a = 1.2 * (height - topMargin) / (width * width);
+        const h = width / 2;
+        const k = height - topMargin * 2;
+        return -a * Math.pow(x - h, 2) + k;
     }
+
+    // ... rest of the code remains the same ...
 }
 
 // Start the scene when the page loads
