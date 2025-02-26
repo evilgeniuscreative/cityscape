@@ -1,5 +1,6 @@
 class CityScene {
     constructor() {
+        this.sceneContainer = document.getElementById('scene-container');
         this.isPlaying = true;
         this.isDark = false; // Track if it's nighttime
         this.dayDuration = 30000; // 30 seconds in milliseconds
@@ -14,6 +15,17 @@ class CityScene {
         this.sunsetColor = '#FF7F50'; // Coral
         this.nightColor = '#1a1a2e';  // Dark blue
         this.lastTransitionTime = null;
+        this.clouds = [];
+        this.minClouds = 3;
+        this.cityscape = document.getElementById('cityscape');
+        this.sky = document.getElementById('sky');
+        this.sun = document.getElementById('sun');
+        this.moon = document.getElementById('moon');
+        this.starContainer = document.getElementById('star-container');
+        
+        // Initialize scene state
+        this.sceneContainer.classList.add('scene-day');
+        
         this.setupScene();
         this.setupControls();
         this.setupResizeHandler();
@@ -59,12 +71,12 @@ class CityScene {
     }
 
     createBuildings() {
-        const buildingCount = Math.floor(Math.random() * 5) + 8; // 8-12 buildings
+        const buildingCount = Math.floor(Math.random() * 8) + 8; // 8-12 buildings
         const containerWidth = window.innerWidth;
         const spacing = containerWidth / buildingCount;
 
         for (let i = 0; i < buildingCount; i++) {
-            const height = Math.random() * 300 + 150;
+            const height = Math.random() * 600 + 50;
             const width = Math.random() * 50 + 100;
             
             const building = document.createElement('div');
@@ -287,16 +299,15 @@ class CityScene {
 
         // Update celestial bodies and sky
         if (isDaytime) {
-            // Calculate sun position using parabola equation: y = -a(x-h)² + k
             const width = window.innerWidth;
             const height = window.innerHeight;
             
             const sunX = -30 + (width + 60) * cycleProgress;
             
-            const topMargin = 30; // Keep 30px from top
-            const a = 2 * (height - topMargin) / (width * width); // Controls parabola width
-            const h = width / 2;  // Peak is at center of screen
-            const k = height - topMargin * 4; // Peak is 30px from top
+            const topMargin = 30;
+            const a = 2 * (height - topMargin) / (width * width);
+            const h = width / 2;
+            const k = height - topMargin * 4;
             const normalizedX = sunX + 30;
             const sunY = -a * Math.pow(normalizedX - h, 2) + k;
             
@@ -304,11 +315,10 @@ class CityScene {
             this.sun.style.display = 'block';
             this.moon.style.display = 'none';
             
-            this.sky.classList.remove('sky-day');
-            this.sky.classList.add('sky-night');
+            this.sky.classList.remove('sky-night');
+            this.sky.classList.add('sky-day');
             this.starContainer.style.display = 'none';
         } else {
-            // Calculate moon position using same parabola
             const width = window.innerWidth;
             const height = window.innerHeight;
             
@@ -325,10 +335,8 @@ class CityScene {
             this.moon.style.display = 'block';
             this.sun.style.display = 'none';
             
-            this.sky.classList.remove('sky-night');
- 
-            this.sky.classList.remove('sky-night');
-            this.sky.classList.add('sky-day');
+            this.sky.classList.remove('sky-day');
+            this.sky.classList.add('sky-night');
             this.starContainer.style.display = 'block';
         }
 
@@ -338,11 +346,31 @@ class CityScene {
             Math.floor((cycleProgress * 720) + 720); // 12:00 to 24:00 during night
         this.updateClock(totalMinutes);
 
-        // Update nighttime flag
+        // Update nighttime flag and scene classes
         this.isDark = !isDaytime;
+        
+        if (this.isDark) {
+            this.sceneContainer.classList.remove('scene-day');
+            this.sceneContainer.classList.add('scene-night');
+            
+            // Update window colors for night
+            document.querySelectorAll('.window').forEach(window => {
+                if (Math.random() < 0.7) { // 70% chance of window being lit
+                    window.style.background = 'rgba(255, 255, 150, 0.8)';
+                }
+            });
+        } else {
+            this.sceneContainer.classList.add('scene-day');
+            this.sceneContainer.classList.remove('scene-night');
+            
+            // Reset window colors for day
+            document.querySelectorAll('.window').forEach(window => {
+                window.style.background = 'linear-gradient(to top, rgba(163, 231, 254, 0.3), rgba(219, 223, 227, 0.3))';
+            });
+        }
 
         // Animate UFO
-        if (isNight && Math.random() < 0.001) {
+        if (this.isDark && Math.random() < 0.001) {
             this.spawnUFO();
         }
 
