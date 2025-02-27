@@ -209,10 +209,24 @@ body {
 
 .star {
     position: absolute;
-    background: #FFFFFF;
+    background: white;
     border-radius: 50%;
-    opacity: 0.8;
-    animation: twinkle 3s ease-in-out infinite;
+    animation: twinkle 1.5s infinite ease-in-out;
+}
+
+.star.small {
+    width: 2px;
+    height: 2px;
+}
+
+.star.medium {
+    width: 3px;
+    height: 3px;
+}
+
+.star.large {
+    width: 4px;
+    height: 4px;
 }
 
 #star-container {

@@ -16,13 +16,11 @@ class CityScene {
         this.buildings = document.querySelectorAll('.building');
         this.windows = document.querySelectorAll('.window');
         
-        // Create clock if it doesn't exist
-        if (!document.getElementById('clock')) {
-            const clock = document.createElement('div');
-            clock.id = 'clock';
-            document.body.appendChild(clock);
-        }
-        this.clock = document.getElementById('clock');
+        // Get clock elements
+        this.digitalClock = document.getElementById('digital-clock');
+        this.analogClock = document.getElementById('analog-clock');
+        this.hourHand = this.analogClock.querySelector('.hour-hand');
+        this.minuteHand = this.analogClock.querySelector('.minute-hand');
         
         // Initialize scene
         this.setupScene();
@@ -35,6 +33,13 @@ class CityScene {
         // Start animation
         this.isPlaying = true;
         this.animateScene();
+        
+        // Setup clock toggle
+        const toggleButton = document.getElementById('toggleClock');
+        toggleButton.addEventListener('click', () => {
+            this.digitalClock.classList.toggle('active');
+            this.analogClock.classList.toggle('active');
+        });
     }
 
     setupScene() {
@@ -221,39 +226,25 @@ class CityScene {
     }
 
     setupCelestialBodies() {
-        // Initial positions
-        this.sun.style.display = 'none';
-        this.moon.style.display = 'none';
-        
-        // Set initial positions off-screen
-        this.sun.style.transform = 'translate(-300px, 500px)';
-        this.moon.style.transform = 'translate(-300px, 500px)';
+        // Set initial positions for sun and moon
+        this.sun.style.transform = 'translate(-50%, -50%) translate(50vw, 100vh)';
+        this.moon.style.transform = 'translate(-50%, -50%) translate(50vw, -50vh)';
     }
 
     setupStars() {
-        if (!this.starContainer) return;
-        
         // Clear existing stars
-        this.starContainer.innerHTML = '';
-        
-        // Create stars
-        const numStars = 100;
-        for (let i = 0; i < numStars; i++) {
+        while (this.starContainer.firstChild) {
+            this.starContainer.removeChild(this.starContainer.firstChild);
+        }
+
+        // Create random stars
+        const starCount = Math.floor(Math.random() * 50) + 100; // 100-150 stars
+        for (let i = 0; i < starCount; i++) {
             const star = document.createElement('div');
-            star.className = 'star';
-            
-            // Random position
+            star.className = 'star ' + ['small', 'medium', 'large'][Math.floor(Math.random() * 3)];
             star.style.left = Math.random() * 100 + '%';
             star.style.top = Math.random() * 100 + '%';
-            
-            // Random size (1-3px)
-            const size = 1 + Math.random() * 2;
-            star.style.width = size + 'px';
-            star.style.height = size + 'px';
-            
-            // Random twinkle animation delay
-            star.style.animationDelay = Math.random() * 3 + 's';
-            
+            star.style.animationDelay = Math.random() * 2 + 's';
             this.starContainer.appendChild(star);
         }
     }
@@ -302,81 +293,67 @@ class CityScene {
         }
     }
 
-    updateClock(hours, minutes) {
-        const period = hours >= 12 ? 'PM' : 'AM';
-        const displayHours = hours % 12 || 12;
-        this.clock.textContent = `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
-    }
-
     animateScene() {
         if (!this.isPlaying) return;
 
-        const now = new Date();
-        const hours = now.getHours();
-        const minutes = now.getMinutes();
-        const seconds = now.getSeconds();
-        const totalMinutes = hours * 60 + minutes + seconds / 60;
-        
+        const now = Date.now();
+        const elapsed = now - this.startTime;
+        const cycleLength = 24000; // 24 seconds for a full day
+        const timeOfDay = (elapsed % cycleLength) / cycleLength;
+
         // Update clock
-        this.updateClock(hours, minutes);
+        const virtualHours = Math.floor(timeOfDay * 24);
+        const virtualMinutes = Math.floor((timeOfDay * 24 * 60) % 60);
+        const ampm = virtualHours >= 12 ? 'PM' : 'AM';
+        const hours12 = virtualHours % 12 || 12;
         
-        // Calculate day/night cycle
-        const dayStart = 6 * 60;  // 6:00 AM
-        const nightStart = 18 * 60;  // 6:00 PM
-        const dayDuration = nightStart - dayStart;
-        const nightDuration = (24 * 60) - dayDuration;
+        // Update digital clock
+        this.digitalClock.textContent = `${hours12}:${String(virtualMinutes).padStart(2, '0')} ${ampm}`;
         
-        let progress;
-        let isDaytime;
+        // Update analog clock
+        const hourAngle = ((virtualHours % 12) / 12) * 360 + (virtualMinutes / 60) * 30;
+        const minuteAngle = (virtualMinutes / 60) * 360;
         
-        if (totalMinutes >= dayStart && totalMinutes < nightStart) {
-            // Daytime
-            progress = (totalMinutes - dayStart) / dayDuration;
-            isDaytime = true;
-        } else {
-            // Nighttime
-            if (totalMinutes >= nightStart) {
-                progress = (totalMinutes - nightStart) / nightDuration;
+        this.hourHand.style.transform = `rotate(${hourAngle}deg)`;
+        this.minuteHand.style.transform = `rotate(${minuteAngle}deg)`;
+
+        // Update sky layers
+        const skyLayers = {
+            dawn: [0.0, 0.25],
+            day: [0.25, 0.75],
+            dusk: [0.75, 0.85],
+            night: [0.85, 1.0]
+        };
+
+        Object.entries(skyLayers).forEach(([layer, [start, end]]) => {
+            const element = this.sky.querySelector(`.sky-layer.${layer}`);
+            if (timeOfDay >= start && timeOfDay < end) {
+                element.classList.remove('hidden');
             } else {
-                progress = (totalMinutes + (24 * 60 - nightStart)) / nightDuration;
+                element.classList.add('hidden');
             }
-            isDaytime = false;
-        }
+        });
 
-        // Calculate arc path
-        const width = window.innerWidth;
-        const height = window.innerHeight;
-        const arcRadius = Math.max(width, height) * 0.8;
+        // Animate sun and moon
+        const sunAngle = (timeOfDay * 2 * Math.PI) - (Math.PI / 2);
+        const moonAngle = sunAngle + Math.PI;
+
+        const radius = Math.min(window.innerWidth, window.innerHeight) * 0.4;
         
-        // Calculate position along the arc
-        const angle = progress * Math.PI;
-        const x = width / 2 + Math.cos(angle) * arcRadius;
-        const y = height - Math.sin(angle) * arcRadius;
+        // Sun position and visibility
+        const sunX = 50 + Math.cos(sunAngle) * 40;
+        const sunY = 50 + Math.sin(sunAngle) * 40;
+        this.sun.style.transform = `translate(-50%, -50%) translate(${sunX}vw, ${sunY}vh)`;
+        this.sun.style.display = (timeOfDay >= 0.25 && timeOfDay < 0.75) ? 'block' : 'none';
+        
+        // Moon position and visibility
+        const moonX = 50 + Math.cos(moonAngle) * 40;
+        const moonY = 50 + Math.sin(moonAngle) * 40;
+        this.moon.style.transform = `translate(-50%, -50%) translate(${moonX}vw, ${moonY}vh)`;
+        this.moon.style.display = (timeOfDay < 0.25 || timeOfDay >= 0.75) ? 'block' : 'none';
 
-        // Update celestial body positions
-        if (isDaytime) {
-            this.sun.style.display = 'block';
-            this.moon.style.display = 'none';
-            this.sun.style.transform = `translate(${x}px, ${y}px)`;
-            
-            document.body.classList.remove('scene-night');
-            document.body.classList.add('scene-day');
-            
-            if (this.starContainer) {
-                this.starContainer.style.opacity = '0';
-            }
-        } else {
-            this.moon.style.display = 'block';
-            this.sun.style.display = 'none';
-            this.moon.style.transform = `translate(${x}px, ${y}px)`;
-            
-            document.body.classList.add('scene-night');
-            document.body.classList.remove('scene-day');
-            
-            if (this.starContainer) {
-                this.starContainer.style.opacity = '1';
-            }
-        }
+        // Show/hide stars based on time of day
+        this.starContainer.style.opacity = timeOfDay > 0.75 || timeOfDay < 0.25 ? '1' : '0';
 
         // Animate clouds
         this.clouds.forEach((cloud, index) => {
@@ -399,7 +376,7 @@ class CityScene {
             this.createCloud(false);
         }
 
-        requestAnimationFrame(this.animateScene.bind(this));
+        requestAnimationFrame(() => this.animateScene());
     }
 
     interpolateColor(color1, color2, factor) {
