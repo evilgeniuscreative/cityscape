@@ -39,9 +39,9 @@ body {
 }
 
 @keyframes twinkle {
-    0% { opacity: 0.3; }
-    50% { opacity: 1; }
-    100% { opacity: 0.3; }
+    0% { opacity: 0.8; }
+    50% { opacity: 0.3; }
+    100% { opacity: 0.8; }
 }
 
 @keyframes float {
@@ -164,8 +164,8 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    opacity: 1;
-    transition: opacity 2s ease;
+    transition: opacity 1s ease;
+    z-index: 1;
 }
 
 .sky-layer.hidden {
@@ -193,23 +193,26 @@ body {
 }
 
 #stars {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 5;
     pointer-events: none;
-    transition: opacity 5s ease;
+    transition: opacity 1s ease;
+    z-index: 1;
+}
+
+.scene-night #stars {
+    display: block;
 }
 
 .star {
     position: absolute;
-    background: white;
-    width: 2px;
-    height: 2px;
+    background: #FFFFFF;
     border-radius: 50%;
-    animation: twinkle 1.5s ease-in-out infinite;
+    opacity: 0.8;
+    animation: twinkle 3s ease-in-out infinite;
 }
 
 #star-container {
@@ -333,136 +336,206 @@ body {
 }
 
 #cityscape {
-    position: relative;
-    z-index: 10;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 70vh;
+    z-index: 5;
+}
+
+.building {
+    position: absolute;
+    bottom: 0;
+    background: #2c3e50;
+    border: 1px solid #555555;
+    box-shadow: 2px 2px 5px #555555;
+    border-radius: 2px -1px 3px 0.8px;
+    transition: background-color 1s ease;
+    padding: 10px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.window-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 10px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.floor {
+    display: flex;
+    justify-content: space-around;
+    gap: 5px;
+    height: 25px;
+    box-sizing: border-box;
+}
+
+.window {
+    width: 15px;
+    height: 20px;
+    background: linear-gradient(45deg, #B9E1FF 0%, #1C6EA4 100%);
+    border-radius: 2px;
+    transition: all 0.5s ease;
+    flex-shrink: 0;
+}
+
+.window.lit {
+    background: #FFD700;
+    box-shadow: 0 0 10px rgba(255, 255, 224, 0.5);
+}
+
+.scene-day .building {
+    background: #95a5a6;
+}
+
+.scene-night .window.lit {
+    background:#FFD700;
+    box-shadow: 0 0 15px rgba(255, 255, 224, 0.6);
+}
+
+.scene-night .window {
+    background:#555555;
+}
+
+.house {
+    position: absolute;
+    bottom: 0;
+    width: 120px;
+    height: 100px;
+    border-radius: 5px 5px 0 0;
+    transition: all 1s ease;
+    border: 1px solid #555555;
+    box-shadow: 2px 2px 5px #555555;
+}
+
+.roof {
+    position: absolute;
+    top: -30px;
+    left: 0;
+    width: 100%;
+    height: 30px;
+    clip-path: polygon(0 100%, 50% 0, 100% 100%);
+    transition: filter 1s ease;
+    border: 1px solid #555555;
+    box-shadow: 2px 2px 5px #555555;
+
+}
+
+.door {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30px;
+    height: 50px;
+    border-radius: 3px 3px 0 0;
+    transition: filter 1s ease;
+    box-shadow: inset 0 5px 5px rgba(0, 0, 0, 0.2);
+}
+
+.door::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 5px;
+    width: 5px;
+    height: 5px;
+    background: #FFD700;
+    border-radius: 50%;
+    box-shadow: 0 0 2px #FFD700;
+}
+
+.scene-night .house,
+.scene-night .roof,
+.scene-night .door {
+    filter: brightness(0.7);
+}
+
+.house-window-left,
+.house-window-right {
+    position: absolute;
+    width: 25px;
+    height: 35px;
+    background: linear-gradient(45deg, #B9E1FF 0%, #1C6EA4 100%);
+    border-radius: 3px;
+    transition: all 0.5s ease;
+}
+
+.house-window-left {
+    left: 10px;
+    bottom: 20px;
+}
+
+.house-window-right {
+    right: 10px;
+    bottom: 20px;
+}
+
+.house-window-left.lit,
+.house-window-right.lit {
+    background: #FFD700;
+    box-shadow: 0 0 15px rgba(255, 255, 224, 0.5);
+}
+
+.streetlamp {
+    position: absolute;
+    bottom: 0;
+    width: 6px;
+    height: 100px;
+    background: #121314;
+    z-index: 150;
+}
+
+.lamp-light {
+    position: absolute;
+    top: -5px;
+    left: -7px;
+    width: 20px;
+    height: 20px;
+    background: #FFD700;
+    border-radius: 50%;
+    box-shadow: 0 0 20px #FFD700;
 }
 
 .cloud {
     position: absolute;
-    background: white;
-    border-radius: 20px;
+    background: #FFFFFF;
+    border-radius: 35px;
     opacity: 0.8;
     transition: background-color 2s ease;
-    right: -80px;
-    width: 80px;
-    animation: float 20s linear infinite;
+    z-index: 150;
+}
+
+.cloud::before,
+.cloud::after {
+    content: '';
+    position: absolute;
+    background: inherit;
+    border-radius: 50%;
+}
+
+.cloud::before {
+    width: 50%;
+    height: 100%;
+    top: -50%;
+    left: 25%;
+}
+
+.cloud::after {
+    width: 30%;
+    height: 60%;
+    top: -30%;
+    left: 10%;
 }
 
 .scene-night .cloud {
-    background: #404040;
-    opacity: 0.6;
-}
-
-.building {
-    background: #404040;
-    border-radius: 4px 4px 0 0;
-    border: 1px solid #555555;
-    bottom: 0;
-    box-shadow: 2px 2px 5px 2px #232324;
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: space-around;
-    padding: 10px 6px;
-    position: absolute;
-    bottom:0;
-    z-index: 10;
-    transition: background-color 2s ease;
-}
-
-.scene-night .building{
-    border: 1px solid #555555;
-    box-shadow: 2px 2px 5px 2px #232324;
-}
-
-.scene-day .building {
-    border: 1px solid #555555;
-    box-shadow: 3px -3 10px 5px #232324;
-}
-
-.window {
-    background: linear-gradient(to top, rgba(163, 231, 254, 0.3), rgba(219, 223, 227, 0.3));
-    border: 1px solid #eeeeee;
-    height: 40px;
-    transition: background 300ms ease;
-    width: 20px;
-
-}
-
-.house {
-    bottom: 0;
-    border: 1px solid #555555;
-    box-shadow: 3px -3 10px 5px #232324;
-    height: 80px;
-    position: absolute;
-    width: 100px;
-    z-index:20;
-}
-
-.roof {
-    border: 1px solid #555555;
-    box-shadow: 3px 0 10px 5px #232324;
-    position: absolute;
-    height: 40px;
-    left: 0;
-    top: -40px;
-    width: 100%;
-}
-
-.door {
-    bottom: 0;
-    background: #FFFFFF;
-    border: 1px solid #eeeeee;
-    height: 40px;
-    left: 40%;
-    position: absolute;
-    width: 30px;
-}
-
-.house-window-left {
-    background: linear-gradient(to top, rgba(173, 216, 230, 0.3), rgba(255, 255, 255, 0.3));
-    bottom: 35px;
-    height: 30px;
-    left: 10%;
-    position: absolute;
-    width: 20px;
-}
-
-.house-window-right {
-    background: linear-gradient(to top, rgba(173, 216, 230, 0.3), rgba(255, 255, 255, 0.3));
-    bottom: 35px;
-    height: 30px;
-    position: absolute;
-    right: 10%;
-    width: 20px;
-}
-
-.streetlamp {
-    background: #1e1e1e;
-    bottom: 0;
-    height: 100px;
-    position: absolute;
-    width: 6px;
-    z-index:90;
-}
-
-.lamp-light {
-    background: #FFFFFF;
-    border-radius: 50%;
-    height: 20px;
-    left: 50%;
-    position: absolute;
-    top: 0;
-    transform: translateX(-50%);
-    transition: background-color 1s ease;
-    width: 20px;
-}
-
-.lamp-night {
-    background: #FFD700;
-    box-shadow: 0px 16px 20px 7px rgba(255,215,0,0.80);
-    transition: background-color 1s ease;
+    background: #A9A9A9;
+    opacity: 0.4;
 }
 
 #controls {
@@ -498,16 +571,15 @@ button:hover {
 }
 
 #sun {
-    position: absolute;
+    position: fixed;
     width: 60px;
     height: 60px;
     background: #FFD700;
     border-radius: 50%;
-    box-shadow: 0 0 60px #FFD700B3;
-    z-index: 5;
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
     transition: transform 0.1s linear;
-    bottom: 0;
-    left: 0;
+    pointer-events: none;
+    z-index: 2;
 }
 
 #sun::before {
@@ -522,59 +594,85 @@ button:hover {
 }
 
 #moon {
-    position: absolute;
+    position: fixed;
     width: 50px;
     height: 50px;
-    background: #E8E8E8;
+    background: #F5F5F5;
     border-radius: 50%;
-    box-shadow: 0 0 40px #E8E8E8B3;
-    z-index: 5;
+    box-shadow: 0 0 20px rgba(245, 245, 245, 0.6);
     transition: transform 0.1s linear;
-    bottom: 0;
-    left: 0;
-    overflow: visible;
+    pointer-events: none;
+    z-index: 2;
 }
 
 .moon-crater {
     position: absolute;
-    background: #D3D3D3;
+    background: #E0E0E0;
     border-radius: 50%;
-    box-shadow: inset 2px 2px 3px #808080;
 }
 
 .moon-crater:nth-child(1) {
-    width: 12px;
-    height: 12px;
-    top: 25%;
-    left: 25%;
+    width: 15px;
+    height: 15px;
+    top: 10px;
+    left: 10px;
 }
 
 .moon-crater:nth-child(2) {
-    width: 8px;
-    height: 8px;
-    top: 50%;
-    left: 50%;
+    width: 10px;
+    height: 10px;
+    top: 25px;
+    right: 15px;
 }
 
 .moon-crater:nth-child(3) {
-    width: 10px;
-    height: 10px;
-    top: 20%;
-    right: 25%;
+    width: 12px;
+    height: 12px;
+    bottom: 10px;
+    left: 20px;
 }
 
 .moon-crater:nth-child(4) {
-    width: 6px;
-    height: 6px;
-    bottom: 30%;
-    left: 40%;
+    width: 8px;
+    height: 8px;
+    bottom: 15px;
+    right: 10px;
 }
 
-#cityscape {
-    bottom: 0;
-    height: 60%;
-    left: 0;
-    position: absolute;
-    right: 0;
-    width: 100%;
+#clock {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-family: monospace;
+    font-size: 20px;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.scene-day .house {
+    background-color: var(--house-color-day);
+}
+
+.scene-night .house {
+    background-color: var(--house-color-night);
+}
+
+.scene-day .house::before {
+    background-color: var(--roof-color-day);
+}
+
+.scene-night .house::before {
+    background-color: var(--roof-color-night);
+}
+
+.scene-day .house::after {
+    background-color: var(--door-color-day);
+}
+
+.scene-night .house::after {
+    background-color: var(--door-color-night);
 }

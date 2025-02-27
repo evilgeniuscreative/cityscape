@@ -1,337 +1,311 @@
 class CityScene {
     constructor() {
-        this.sceneContainer = document.getElementById('scene-container');
         this.isPlaying = false;
-        this.isDark = false;
-        this.dayDuration = 20000;    // 20 seconds for day
-        this.nightDuration = 20000;  // 20 seconds for night
-        this.totalCycleDuration = this.dayDuration + this.nightDuration;
         this.startTime = Date.now();
-        this.screenWidth = window.innerWidth;
-        this.screenHeight = window.innerHeight;
-        this.topPadding = 20;
-        this.dayColor = '#87CEEB';
-        this.sunsetColor = '#FF7F50';
-        this.nightColor = '#1a1a2e';
-        this.lastTransitionTime = null;
+        this.isDark = false;
         this.clouds = [];
         this.minClouds = 3;
-        
-        // Get DOM elements
-        this.cityscape = document.getElementById('cityscape');
+        this.maxClouds = 6;
+
+        // Get references to DOM elements
         this.sky = document.getElementById('sky');
         this.sun = document.getElementById('sun');
         this.moon = document.getElementById('moon');
         this.starContainer = document.getElementById('stars');
-        this.digitalClock = document.getElementById('digital-clock');
-        this.analogClock = document.querySelector('.analog-clock');
+        this.cityscape = document.getElementById('cityscape');
+        this.buildings = document.querySelectorAll('.building');
+        this.windows = document.querySelectorAll('.window');
         
-        // Initialize scene state
-        this.sceneContainer.classList.add('scene-day');
-        this.digitalClock.classList.add('active');
+        // Create clock if it doesn't exist
+        if (!document.getElementById('clock')) {
+            const clock = document.createElement('div');
+            clock.id = 'clock';
+            document.body.appendChild(clock);
+        }
+        this.clock = document.getElementById('clock');
         
+        // Initialize scene
         this.setupScene();
-        this.startAnimation();
+        
+        // Initialize components
+        this.setupCelestialBodies();
+        this.setupStars();
+        this.setupClouds();
+        
+        // Start animation
+        this.isPlaying = true;
+        this.animateScene();
     }
 
     setupScene() {
-        this.starContainer = document.getElementById('stars');
-        const numberOfStars = 300;
-        
-        for (let i = 0; i < numberOfStars; i++) {
-            const star = document.createElement('div');
-            star.className = 'star';
-            
-            // Random size between 1 and 3 pixels
-            const size = Math.random() * 2 + 1;
-            star.style.width = `${size}px`;
-            star.style.height = `${size}px`;
-            
-            // Position anywhere in the viewport
-            star.style.left = `${Math.random() * 100}%`;
-            star.style.top = `${Math.random() * 100}%`;
-            
-            // Random twinkle delay
-            star.style.animationDelay = `${Math.random() * 1}s`;
-            
-            this.starContainer.appendChild(star);
-        }
-
-        // Start animation if not already playing
-        if (!this.isPlaying) {
-            this.isPlaying = true;
-            this.animateScene();
+        // Create cityscape container if it doesn't exist
+        if (!this.cityscape) {
+            this.cityscape = document.createElement('div');
+            this.cityscape.id = 'cityscape';
+            document.getElementById('scene-container').appendChild(this.cityscape);
         }
         
         this.createBuildings();
-        this.createClouds();
         this.createHouses();
         this.createStreetlamps();
-        this.setupCelestialBodies();
-        this.setupClock();
-        this.setupControls();
     }
 
     createBuildings() {
-        const buildingCount = Math.floor(Math.random() * 8) + 8; // 8-12 buildings
-        const containerWidth = window.innerWidth;
-        const spacing = containerWidth / buildingCount;
+        // Clear existing buildings
+        const existingBuildings = this.cityscape.querySelectorAll('.building');
+        existingBuildings.forEach(building => building.remove());
 
+        const buildingCount = Math.floor(Math.random() * 6) + 8; // 8-12 buildings
+        const containerWidth = window.innerWidth;
+        const minSpacing = 100; // Minimum space between buildings
+        
+        // Create array of x positions
+        const positions = [];
         for (let i = 0; i < buildingCount; i++) {
-            const height = Math.random() * 600 + 50;
-            const width = Math.random() * 50 + 100;
-            
+            let x;
+            do {
+                x = Math.random() * (containerWidth - 150); // 150px is max building width
+            } while (positions.some(pos => Math.abs(pos - x) < minSpacing));
+            positions.push(x);
+        }
+        
+        positions.forEach((x, i) => {
             const building = document.createElement('div');
             building.className = 'building';
-
-            building.style.left = `${i * spacing}px`;
-            building.style.width = `${width}px`;
+            
+            // Random height between 100 and 300 pixels
+            const height = Math.random() * 200 + 100;
             building.style.height = `${height}px`;
-
+            
+            // Random width between 100 and 150 pixels
+            const width = Math.random() * 50 + 100;
+            building.style.width = `${width}px`;
+            
+            // Position building
+            building.style.left = `${x}px`;
+            
+            // Random z-index between 1 and 10 (buildings always behind houses)
+            building.style.zIndex = Math.floor(Math.random() * 10) + 1;
+            
+            // Create window container for flex layout
+            const windowContainer = document.createElement('div');
+            windowContainer.className = 'window-container';
+            building.appendChild(windowContainer);
+            
             // Add windows
-            const windowsHorizontal = Math.floor((width - 12) / 31); // 31 = window width + spacing
-            const windowsVertical = Math.floor((height - 12) / 46); // 46 = window height + spacing
-
-            for (let row = 0; row < windowsVertical; row++) {
-                for (let col = 0; col < windowsHorizontal; col++) {
+            const floorHeight = 40; // Height of each floor including gap
+            const floors = Math.floor((height - 20) / floorHeight); // Account for padding
+            const windowWidth = 20; // Width of each window including gap
+            const windowsPerFloor = Math.floor((width - 20) / windowWidth); // Account for padding
+            
+            for (let floor = 0; floor < floors; floor++) {
+                const floorDiv = document.createElement('div');
+                floorDiv.className = 'floor';
+                
+                
+                for (let w = 0; w < windowsPerFloor; w++) {
                     const window = document.createElement('div');
                     window.className = 'window';
-                    building.appendChild(window);
+                    // Random chance for window to be lit
+                    if (Math.random() < 0.3) {
+                        window.classList.add('lit');
+                    }
+                    floorDiv.appendChild(window);
                 }
+                
+                windowContainer.appendChild(floorDiv);
             }
-
+            
             this.cityscape.appendChild(building);
-        }
-    }
-
-    createWindow(building) {
-        const window = document.createElement('div');
-        window.className = 'window day';
-        window.dataset.windowId = Math.random().toString(36).substr(2, 9); // Assign a unique ID
-        building.appendChild(window);
-        return window;
+        });
     }
 
     createHouses() {
-        const houseCount = Math.floor(Math.random() * 4) + 5; // 5-8 houses
-        const containerWidth = window.innerWidth;
-        const spacing = containerWidth / houseCount;
+        // Clear existing houses
+        const existingHouses = this.cityscape.querySelectorAll('.house');
+        existingHouses.forEach(house => house.remove());
 
+        const houseColors = ['#FFB6C1', '#FFEB3B', '#64B5F6', '#FA8072', '#FFA726', '#81C784', '#BA68C8'];
+        const roofColors = ['#212121', '#795548', '#BDBDBD', '#2E7D32', '#C62828', '#4527A0', '#1565C0'];
+        const doorColors = ['#D32F2F', '#FBC02D', '#6A1B9A', '#1565C0', '#4E342E'];
+
+        const houseCount = Math.floor(Math.random() * 6) + 3; // 3-8 houses
+        const containerWidth = window.innerWidth;
+        const minSpacing = 130; // Minimum space between houses
+        
+        // Create array of x positions
+        const positions = [];
         for (let i = 0; i < houseCount; i++) {
+            let x;
+            do {
+                x = Math.random() * (containerWidth - 120); // 120px is house width
+            } while (positions.some(pos => Math.abs(pos - x) < minSpacing));
+            positions.push(x);
+        }
+        
+        positions.forEach((x, i) => {
             const house = document.createElement('div');
             house.className = 'house';
-            house.style.left = `${i * spacing}px`;
             
-            // Random house colors
-            const wallColor = `hsl(${Math.random() * 360}, 70%, 70%)`;
-            const roofColor = `hsl(${Math.random() * 360}, 70%, 50%)`;
-            const doorColor = `hsl(${Math.random() * 360}, 70%, 40%)`;
-
-            house.style.backgroundColor = wallColor;
-            house.innerHTML = `
-                <div class="roof" style="background: ${roofColor}; clip-path: polygon(0 100%, 50% 0, 100% 100%)"></div>
-                <div style="position: absolute; bottom: 0; left: 40%; width: 20px; height: 40px; background: ${doorColor}"></div>
-                <div class="window house-window-left"></div>
-                <div class="window house-window-right"></div>`;
-
+            // Random height between 80 and 110 pixels
+            const height = Math.random() * 30 + 80;
+            house.style.height = `${height}px`;
+            
+            // Random colors
+            const houseColor = houseColors[Math.floor(Math.random() * houseColors.length)];
+            const roofColor = roofColors[Math.floor(Math.random() * roofColors.length)];
+            const doorColor = doorColors[Math.floor(Math.random() * doorColors.length)];
+            
+            // Create roof
+            const roof = document.createElement('div');
+            roof.className = 'roof';
+            roof.style.backgroundColor = roofColor;
+            house.appendChild(roof);
+            
+            // Create door
+            const door = document.createElement('div');
+            door.className = 'door';
+            door.style.backgroundColor = doorColor;
+            house.appendChild(door);
+            
+            // Set house color and position
+            house.style.backgroundColor = houseColor;
+            house.style.left = `${x}px`;
+            
+            // Fixed z-index of 20 (houses always in front of buildings)
+            house.style.zIndex = 20;
+            
+            // Add windows with random lighting
+            const leftWindow = document.createElement('div');
+            leftWindow.className = 'house-window-left';
+            if (Math.random() < 0.3) {
+                leftWindow.classList.add('lit');
+            }
+            house.appendChild(leftWindow);
+            
+            const rightWindow = document.createElement('div');
+            rightWindow.className = 'house-window-right';
+            if (Math.random() < 0.3) {
+                rightWindow.classList.add('lit');
+            }
+            house.appendChild(rightWindow);
+            
             this.cityscape.appendChild(house);
-        }
+        });
     }
 
     createStreetlamps() {
-        const lampCount = Math.floor(window.innerWidth / 150); // One lamp every 150px
-        const spacing = window.innerWidth / lampCount;
+        // Clear existing lamps
+        const existingLamps = this.cityscape.querySelectorAll('.streetlamp');
+        existingLamps.forEach(lamp => lamp.remove());
 
-        for (let i = 0; i < lampCount; i++) {
+        const spacing = 150; // Fixed spacing of 150px
+        const lampCount = Math.ceil(window.innerWidth / spacing);
+        
+        for (let i = 0; i <= lampCount; i++) {
             const lamp = document.createElement('div');
             lamp.className = 'streetlamp';
             lamp.style.left = `${i * spacing}px`;
             
             const light = document.createElement('div');
             light.className = 'lamp-light';
+            
+            const down = document.createElement('div');
+            down.className = 'lamp-down';
+            
             lamp.appendChild(light);
+            lamp.appendChild(down);
             
             this.cityscape.appendChild(lamp);
         }
     }
 
-    createStars() {
-        for (let i = 0; i < 50; i++) {
+    setupCelestialBodies() {
+        // Initial positions
+        this.sun.style.display = 'none';
+        this.moon.style.display = 'none';
+        
+        // Set initial positions off-screen
+        this.sun.style.transform = 'translate(-300px, 500px)';
+        this.moon.style.transform = 'translate(-300px, 500px)';
+    }
+
+    setupStars() {
+        if (!this.starContainer) return;
+        
+        // Clear existing stars
+        this.starContainer.innerHTML = '';
+        
+        // Create stars
+        const numStars = 100;
+        for (let i = 0; i < numStars; i++) {
             const star = document.createElement('div');
             star.className = 'star';
-            star.style.left = `${Math.random() * 100}%`;
-            star.style.top = `${Math.random() * 60}%`;
-            this.sky.appendChild(star);
+            
+            // Random position
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            
+            // Random size (1-3px)
+            const size = 1 + Math.random() * 2;
+            star.style.width = size + 'px';
+            star.style.height = size + 'px';
+            
+            // Random twinkle animation delay
+            star.style.animationDelay = Math.random() * 3 + 's';
+            
+            this.starContainer.appendChild(star);
         }
     }
 
-    createClouds() {
-        const cloudCount = Math.floor(Math.random() * 3) + 3; // 3-5 clouds
-        for (let i = 0; i < cloudCount; i++) {
+    setupClouds() {
+        // Clear existing clouds
+        const existingClouds = document.querySelectorAll('.cloud');
+        existingClouds.forEach(cloud => cloud.remove());
+        this.clouds = [];
+
+        // Create initial clouds
+        for (let i = 0; i < this.minClouds; i++) {
             this.createCloud(true);
         }
     }
 
-    createCloud(randomPosition = false) {
+    createCloud(randomizePosition = false) {
         const cloud = document.createElement('div');
         cloud.className = 'cloud';
         
-        // Random cloud dimensions
-        const width = Math.random() * 100 + 80;
-        const height = width * 0.6;
-        cloud.style.width = `${width}px`;
-        cloud.style.height = `${height}px`;
+        // Random cloud properties
+        const width = 100 + Math.random() * 100;
+        const height = 40 + Math.random() * 30;
+        const speed = 0.02 + Math.random() * 0.03;
         
-        // Random vertical position
-        const maxTop = Math.min(window.innerHeight * 0.4, 300);
-        const top = Math.random() * maxTop;
-        cloud.style.top = `${top}px`;
+        cloud.style.width = width + 'px';
+        cloud.style.height = height + 'px';
+        cloud.style.top = (Math.random() * 40) + '%';
         
-        // Horizontal position
-        if (randomPosition) {
-            cloud.style.left = `${Math.random() * 100}%`;
+        if (randomizePosition) {
+            cloud.style.left = (Math.random() * 100) + '%';
         } else {
-            cloud.style.left = '100%';
+            cloud.style.left = '-20%';
         }
         
-        // Add to scene and track
-        this.clouds.push(cloud);
+        // Store cloud properties
+        cloud.dataset.speed = speed;
+        
         document.getElementById('clouds').appendChild(cloud);
+        this.clouds.push(cloud);
         
-        return cloud;
-    }
-
-    setupCelestialBodies() {
-        const width = window.innerWidth;
-        const height = window.innerHeight;
-        
-        // Calculate initial positions based on current time
-        const now = new Date();
-        const hours = now.getHours();
-        const minutes = now.getMinutes();
-        const totalMinutes = hours * 60 + minutes;
-        
-        // Calculate progress through day/night cycle
-        const dayStart = 6 * 60;  // 6:00 AM
-        const nightStart = 18 * 60;  // 6:00 PM
-        
-        let progress;
-        let isDaytime = false;
-        
-        if (totalMinutes >= dayStart && totalMinutes < nightStart) {
-            // Daytime
-            progress = (totalMinutes - dayStart) / (nightStart - dayStart);
-            isDaytime = true;
-        } else {
-            // Nighttime
-            if (totalMinutes >= nightStart) {
-                progress = (totalMinutes - nightStart) / (24 * 60 - nightStart + dayStart);
-            } else {
-                progress = (totalMinutes + 24 * 60 - nightStart) / (24 * 60 - nightStart + dayStart);
-            }
-        }
-        
-        // Set initial positions
-        const totalWidth = width + 600;
-        const h = width / 2;
-        const k = height * 0.8;
-        const a = 0.8 / (totalWidth * 0.7);
-
-        if (isDaytime) {
-            const sunX = -300 + totalWidth * progress;
-            const sunY = -a * Math.pow(sunX - h, 2) + k;
-            this.sun.style.transform = `translate(${sunX}px, ${-sunY}px)`;
-            this.sun.style.display = 'block';
-            this.moon.style.display = 'none';
-            document.querySelector('.sky-layer.night').classList.add('hidden');
-            document.querySelector('.sky-layer.day').classList.remove('hidden');
-        } else {
-            const moonX = -300 + totalWidth * progress;
-            const moonY = -a * Math.pow(moonX - h, 2) + k;
-            this.moon.style.transform = `translate(${moonX}px, ${-moonY}px)`;
-            this.moon.style.display = 'block';
-            this.sun.style.display = 'none';
-            document.querySelector('.sky-layer.night').classList.remove('hidden');
-            document.querySelector('.sky-layer.day').classList.add('hidden');
-        }
-        
-        // Set initial sky state
-        if (isDaytime) {
-            this.sky.classList.remove('sky-night');
-            this.sky.classList.add('sky-day');
-            if (this.starContainer) {
-                this.starContainer.style.display = 'none';
-            }
-        } else {
-            this.sky.classList.remove('sky-day');
-            this.sky.classList.add('sky-night');
-            if (this.starContainer) {
-                this.starContainer.style.display = 'block';
-            }
+        // Remove excess clouds
+        if (this.clouds.length > this.maxClouds) {
+            const oldCloud = this.clouds.shift();
+            oldCloud.remove();
         }
     }
 
-    setupClock() {
-        this.digitalClock = document.getElementById('digital-clock');
-        this.analogClock = document.getElementById('analog-clock');
-        this.hourHand = this.analogClock.querySelector('.hour-hand');
-        this.minuteHand = this.analogClock.querySelector('.minute-hand');
-    }
-
-    setupControls() {
-        const playPauseBtn = document.getElementById('playPause');
-        const toggleClockBtn = document.getElementById('toggleClock');
-
-        playPauseBtn.addEventListener('click', () => {
-            this.isPlaying = !this.isPlaying;
-            playPauseBtn.textContent = this.isPlaying ? 'Pause' : 'Play';
-            if (this.isPlaying) {
-                this.startTime = Date.now() - (this.totalCycleDuration * (this.isDark ? 0.5 : 0));
-                requestAnimationFrame(this.animateScene.bind(this));
-            }
-        });
-
-        toggleClockBtn.addEventListener('click', () => {
-            this.digitalClock.classList.toggle('active');
-            this.analogClock.classList.toggle('active');
-        });
-    }
-
-    setupResizeHandler() {
-        window.addEventListener('resize', () => {
-            this.screenWidth = window.innerWidth;
-            this.screenHeight = window.innerHeight;
-            // Recalculate positions immediately on resize
-            if (this.sun && this.moon) {
-                const simulatedMinutes = this.getCurrentSimulatedMinutes();
-                this.updateCelestialPositions(simulatedMinutes);
-            }
-        });
-    }
-
-    updateClock(minutes) {
-        const hours = Math.floor(minutes / 60);
-        const mins = Math.floor(minutes % 60);
+    updateClock(hours, minutes) {
         const period = hours >= 12 ? 'PM' : 'AM';
         const displayHours = hours % 12 || 12;
-        
-        // Update digital clock
-        const digitalClock = document.getElementById('digital-clock');
-        if (digitalClock) {
-            digitalClock.textContent = `${displayHours}:${mins.toString().padStart(2, '0')} ${period}`;
-        }
-
-        // Update analog clock
-        const hourHand = document.querySelector('.hour-hand');
-        const minuteHand = document.querySelector('.minute-hand');
-        
-        if (hourHand && minuteHand) {
-            const hourAngle = ((hours % 12) * 30) + (mins * 0.5);
-            const minuteAngle = mins * 6;
-            
-            hourHand.style.transform = `rotate(${hourAngle}deg)`;
-            minuteHand.style.transform = `rotate(${minuteAngle}deg)`;
-        }
+        this.clock.textContent = `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
     }
 
     animateScene() {
@@ -343,61 +317,86 @@ class CityScene {
         const seconds = now.getSeconds();
         const totalMinutes = hours * 60 + minutes + seconds / 60;
         
+        // Update clock
+        this.updateClock(hours, minutes);
+        
         // Calculate day/night cycle
         const dayStart = 6 * 60;  // 6:00 AM
         const nightStart = 18 * 60;  // 6:00 PM
+        const dayDuration = nightStart - dayStart;
+        const nightDuration = (24 * 60) - dayDuration;
         
         let progress;
-        let isDaytime = false;
+        let isDaytime;
         
         if (totalMinutes >= dayStart && totalMinutes < nightStart) {
             // Daytime
-            progress = (totalMinutes - dayStart) / (nightStart - dayStart);
+            progress = (totalMinutes - dayStart) / dayDuration;
             isDaytime = true;
         } else {
             // Nighttime
             if (totalMinutes >= nightStart) {
-                progress = (totalMinutes - nightStart) / (24 * 60 - nightStart + dayStart);
+                progress = (totalMinutes - nightStart) / nightDuration;
             } else {
-                progress = (totalMinutes + 24 * 60 - nightStart) / (24 * 60 - nightStart + dayStart);
+                progress = (totalMinutes + (24 * 60 - nightStart)) / nightDuration;
+            }
+            isDaytime = false;
+        }
+
+        // Calculate arc path
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const arcRadius = Math.max(width, height) * 0.8;
+        
+        // Calculate position along the arc
+        const angle = progress * Math.PI;
+        const x = width / 2 + Math.cos(angle) * arcRadius;
+        const y = height - Math.sin(angle) * arcRadius;
+
+        // Update celestial body positions
+        if (isDaytime) {
+            this.sun.style.display = 'block';
+            this.moon.style.display = 'none';
+            this.sun.style.transform = `translate(${x}px, ${y}px)`;
+            
+            document.body.classList.remove('scene-night');
+            document.body.classList.add('scene-day');
+            
+            if (this.starContainer) {
+                this.starContainer.style.opacity = '0';
+            }
+        } else {
+            this.moon.style.display = 'block';
+            this.sun.style.display = 'none';
+            this.moon.style.transform = `translate(${x}px, ${y}px)`;
+            
+            document.body.classList.add('scene-night');
+            document.body.classList.remove('scene-day');
+            
+            if (this.starContainer) {
+                this.starContainer.style.opacity = '1';
             }
         }
 
-        const width = window.innerWidth;
-        const height = window.innerHeight;
-        
-        // Calculate arc parameters
-        const totalWidth = width + 600;
-        const h = width / 2;
-        const k = height * 0.8;
-        const a = 0.8 / (totalWidth * 0.7);
+        // Animate clouds
+        this.clouds.forEach((cloud, index) => {
+            const left = parseFloat(cloud.style.left);
+            const speed = parseFloat(cloud.dataset.speed);
+            
+            if (left > 120) {
+                cloud.remove();
+                this.clouds.splice(index, 1);
+                
+                if (this.clouds.length < this.minClouds) {
+                    this.createCloud(false);
+                }
+            } else {
+                cloud.style.left = (left + speed) + '%';
+            }
+        });
 
-        if (isDaytime) {
-            const sunX = -300 + totalWidth * progress;
-            const sunY = -a * Math.pow(sunX - h, 2) + k;
-            
-            this.sun.style.transform = `translate(${sunX}px, ${-sunY}px)`;
-            this.sun.style.display = 'block';
-            this.moon.style.display = 'none';
-            
-            document.querySelector('.sky-layer.night').classList.add('hidden');
-            document.querySelector('.sky-layer.day').classList.remove('hidden');
-            if (this.starContainer) {
-                this.starContainer.style.display = 'none';
-            }
-        } else {
-            const moonX = -300 + totalWidth * progress;
-            const moonY = -a * Math.pow(moonX - h, 2) + k;
-            
-            this.moon.style.transform = `translate(${moonX}px, ${-moonY}px)`;
-            this.moon.style.display = 'block';
-            this.sun.style.display = 'none';
-            
-            document.querySelector('.sky-layer.night').classList.remove('hidden');
-            document.querySelector('.sky-layer.day').classList.add('hidden');
-            if (this.starContainer) {
-                this.starContainer.style.display = 'block';
-            }
+        if (Math.random() < 0.005 && this.clouds.length < this.maxClouds) {
+            this.createCloud(false);
         }
 
         requestAnimationFrame(this.animateScene.bind(this));
