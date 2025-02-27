@@ -227,8 +227,8 @@ class CityScene {
 
     setupCelestialBodies() {
         // Set initial positions for sun and moon
-        this.sun.style.transform = 'translate(-50%, -50%) translate(50vw, 100vh)';
-        this.moon.style.transform = 'translate(-50%, -50%) translate(50vw, -50vh)';
+        this.sun.style.transform = `translate(-150vw, ${window.innerHeight * 0.7}px)`;
+        this.moon.style.transform = `translate(-150vw, ${window.innerHeight * 0.7}px)`;
     }
 
     setupStars() {
@@ -243,10 +243,13 @@ class CityScene {
             const star = document.createElement('div');
             star.className = 'star ' + ['small', 'medium', 'large'][Math.floor(Math.random() * 3)];
             star.style.left = Math.random() * 100 + '%';
-            star.style.top = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 70 + '%'; // Keep stars in upper 70% of sky
             star.style.animationDelay = Math.random() * 2 + 's';
             this.starContainer.appendChild(star);
         }
+        
+        // Initially hide stars
+        this.starContainer.style.opacity = '0';
     }
 
     setupClouds() {
@@ -293,6 +296,24 @@ class CityScene {
         }
     }
 
+    calculateCelestialPosition(progress) {
+        // Map progress (0-1) to x position across viewport width (-10 to 110)
+        const x = progress * 120 - 10; // Start off-screen left, end off-screen right
+        
+        // Parabola parameters
+        const h = 50;  // vertex x-coordinate (center of viewport)
+        const k = 10;  // vertex y-coordinate (10vh from top - apogee)
+        const a = 0.02;  // coefficient for steeper curve
+        
+        // Calculate y position
+        // y = ax² + bx + c form of parabola
+        // When x = -10 or 110, y should be ~90vh
+        // When x = 50, y should be 10vh (k)
+        const y = a * Math.pow(x - h, 2) + k;
+        
+        return { x, y };
+    }
+
     animateScene() {
         if (!this.isPlaying) return;
 
@@ -317,7 +338,7 @@ class CityScene {
         this.hourHand.style.transform = `rotate(${hourAngle}deg)`;
         this.minuteHand.style.transform = `rotate(${minuteAngle}deg)`;
 
-        // Update sky layers
+        // Keep existing sky layer transitions
         const skyLayers = {
             dawn: [0.0, 0.25],
             day: [0.25, 0.75],
@@ -334,26 +355,37 @@ class CityScene {
             }
         });
 
-        // Animate sun and moon
-        const sunAngle = (timeOfDay * 2 * Math.PI) - (Math.PI / 2);
-        const moonAngle = sunAngle + Math.PI;
+        // Sun animation (6am to 6pm)
+        if (timeOfDay >= 0.25 && timeOfDay < 0.75) {
+            const sunProgress = (timeOfDay - 0.25) * 2; // 0 to 1
+            const pos = this.calculateCelestialPosition(sunProgress);
+            
+            this.sun.style.transform = `translate(${pos.x}vw, ${pos.y}vh)`;
+            this.sun.style.display = 'block';
+        } else {
+            this.sun.style.display = 'none';
+        }
 
-        const radius = Math.min(window.innerWidth, window.innerHeight) * 0.4;
-        
-        // Sun position and visibility
-        const sunX = 50 + Math.cos(sunAngle) * 40;
-        const sunY = 50 + Math.sin(sunAngle) * 40;
-        this.sun.style.transform = `translate(-50%, -50%) translate(${sunX}vw, ${sunY}vh)`;
-        this.sun.style.display = (timeOfDay >= 0.25 && timeOfDay < 0.75) ? 'block' : 'none';
-        
-        // Moon position and visibility
-        const moonX = 50 + Math.cos(moonAngle) * 40;
-        const moonY = 50 + Math.sin(moonAngle) * 40;
-        this.moon.style.transform = `translate(-50%, -50%) translate(${moonX}vw, ${moonY}vh)`;
-        this.moon.style.display = (timeOfDay < 0.25 || timeOfDay >= 0.75) ? 'block' : 'none';
+        // Moon animation (6pm to 6am)
+        if (timeOfDay >= 0.75 || timeOfDay < 0.25) {
+            let moonProgress;
+            if (timeOfDay >= 0.75) {
+                moonProgress = (timeOfDay - 0.75) * 2; // 0 to 1 for 6pm to midnight
+            } else {
+                moonProgress = ((timeOfDay + 0.25) * 2); // 0 to 1 for midnight to 6am
+            }
+            
+            const pos = this.calculateCelestialPosition(moonProgress);
+            
+            this.moon.style.transform = `translate(${pos.x}vw, ${pos.y}vh)`;
+            this.moon.style.display = 'block';
+        } else {
+            this.moon.style.display = 'none';
+        }
 
-        // Show/hide stars based on time of day
-        this.starContainer.style.opacity = timeOfDay > 0.75 || timeOfDay < 0.25 ? '1' : '0';
+        // Show/hide stars during night (with transition)
+        const isNight = timeOfDay >= 0.75 || timeOfDay < 0.25;
+        this.starContainer.style.opacity = isNight ? '1' : '0';
 
         // Animate clouds
         this.clouds.forEach((cloud, index) => {

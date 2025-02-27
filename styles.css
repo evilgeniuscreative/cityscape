@@ -193,14 +193,13 @@ body {
 }
 
 #stars {
-    position: fixed;
+    position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    pointer-events: none;
     transition: opacity 1s ease;
-    z-index: 1;
+    z-index: 3;
 }
 
 .scene-night #stars {
@@ -212,6 +211,7 @@ body {
     background: white;
     border-radius: 50%;
     animation: twinkle 1.5s infinite ease-in-out;
+    z-index: 3;
 }
 
 .star.small {
@@ -584,73 +584,22 @@ button:hover {
     background: rgba(255, 255, 255, 1);
 }
 
-#sun {
-    position: fixed;
+#sun, #moon {
+    position: absolute;
     width: 60px;
     height: 60px;
-    background: #FFD700;
     border-radius: 50%;
-    box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
-    transition: transform 0.1s linear;
-    pointer-events: none;
-    z-index: 2;
+    z-index: 5;
 }
 
-#sun::before {
-    content: '';
-    position: absolute;
-    width: 70px;
-    height: 70px;
-    top: -5px;
-    left: -5px;
-    background: radial-gradient(#FFD700 50%, transparent 70%);
-    border-radius: 50%;
+#sun {
+    background: #FFD700;
+    box-shadow: 0 0 50px #FFD700;
 }
 
 #moon {
-    position: fixed;
-    width: 50px;
-    height: 50px;
     background: #F5F5F5;
-    border-radius: 50%;
-    box-shadow: 0 0 20px rgba(245, 245, 245, 0.6);
-    transition: transform 0.1s linear;
-    pointer-events: none;
-    z-index: 2;
-}
-
-.moon-crater {
-    position: absolute;
-    background: #E0E0E0;
-    border-radius: 50%;
-}
-
-.moon-crater:nth-child(1) {
-    width: 15px;
-    height: 15px;
-    top: 10px;
-    left: 10px;
-}
-
-.moon-crater:nth-child(2) {
-    width: 10px;
-    height: 10px;
-    top: 25px;
-    right: 15px;
-}
-
-.moon-crater:nth-child(3) {
-    width: 12px;
-    height: 12px;
-    bottom: 10px;
-    left: 20px;
-}
-
-.moon-crater:nth-child(4) {
-    width: 8px;
-    height: 8px;
-    bottom: 15px;
-    right: 10px;
+    box-shadow: 0 0 30px rgba(245, 245, 245, 0.6);
 }
 
 #clock {
@@ -689,4 +638,38 @@ button:hover {
 
 .scene-night .house::after {
     background-color: var(--door-color-night);
+}
+
+.moon-crater {
+    position: absolute;
+    background: #E0E0E0;
+    border-radius: 50%;
+}
+
+.moon-crater:nth-child(1) {
+    width: 15px;
+    height: 15px;
+    top: 10px;
+    left: 10px;
+}
+
+.moon-crater:nth-child(2) {
+    width: 10px;
+    height: 10px;
+    top: 25px;
+    right: 15px;
+}
+
+.moon-crater:nth-child(3) {
+    width: 12px;
+    height: 12px;
+    bottom: 10px;
+    left: 20px;
+}
+
+.moon-crater:nth-child(4) {
+    width: 8px;
+    height: 8px;
+    bottom: 15px;
+    right: 10px;
 }
