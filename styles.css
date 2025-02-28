@@ -164,32 +164,45 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
+    opacity: 1;
     transition: opacity 1s ease;
-    z-index: 1;
 }
 
 .sky-layer.hidden {
     opacity: 0;
-}
-
-.sky-layer.day {
-    background: linear-gradient(to bottom, #87CEEB, #4A90E2);
-    z-index: 1;
+    visibility: hidden;  
+    transition: opacity 1s ease, visibility 0s linear 1s;  
 }
 
 .sky-layer.night {
     background: linear-gradient(to bottom, #1a1a2e, #16213e);
-    z-index: 2;
+    z-index: 1;
 }
 
-.sky-layer.dawn {
-    background: linear-gradient(to bottom, #FFB6C1, #87CEEB);
-    z-index: 3;
+.sky-layer.moonrise {
+    /* background: linear-gradient(to bottom, 
+        #1a1a2e 0%,
+        #2d3047 30%,
+        #474b6b 60%,
+        #8b7f93 85%,
+        #c8a2c8 100%
+    ); */
+    z-index: 2;
 }
 
 .sky-layer.dusk {
     background: linear-gradient(to bottom, #FF7F50, #2b2b4a);
+    z-index: 3;
+}
+
+.sky-layer.day {
+    background: linear-gradient(to bottom, #87CEEB, #E0FFFF);
     z-index: 4;
+}
+
+.sky-layer.dawn {
+    background: linear-gradient(to bottom, #FFB6C1, #87CEEB);
+    z-index: 5;
 }
 
 #stars {
@@ -501,7 +514,7 @@ body {
     bottom: 0;
     width: 6px;
     height: 100px;
-    background: #121314;
+    background-color: #121314;
     z-index: 150;
 }
 
@@ -514,6 +527,25 @@ body {
     background: #FFD700;
     border-radius: 50%;
     box-shadow: 0 0 20px #FFD700;
+    transition: all 0.5s ease;
+}
+
+.lamp-light.day {
+    background-color: #ffffff;
+    transition: all 0.5s ease;
+}
+
+.lamp-light.night {
+    background-color: #ffeb3b;
+    transition: all 0.5s ease;
+}
+
+.lamp-down.night{
+ 
+    opacity:0.8;
+    box-shadow: 0 50px 80px 40px #FFD700;
+    transition: all 0.5s ease;
+
 }
 
 .cloud {

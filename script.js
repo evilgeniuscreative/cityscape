@@ -6,6 +6,7 @@ class CityScene {
         this.clouds = [];
         this.minClouds = 3;
         this.maxClouds = 6;
+        this.lastPhase = null; // Initialize lastPhase property
 
         // Get references to DOM elements
         this.sky = document.getElementById('sky');
@@ -322,17 +323,28 @@ class CityScene {
         const cycleLength = 24000; // 24 seconds for a full day
         const timeOfDay = (elapsed % cycleLength) / cycleLength;
 
+        // Convert timeOfDay to hours for easier calculations
+        const virtualHours = timeOfDay * 24;
+
+        // Update streetlight colors based on time
+        const lampLights = document.querySelectorAll('.lamp-light, .lamp-down');
+        const isDay = virtualHours >= 7 && virtualHours < 18; // 7am to 6pm
+        lampLights.forEach(light => {
+            light.classList.toggle('day', isDay);
+            light.classList.toggle('night', !isDay);
+        });
+
         // Update clock
-        const virtualHours = Math.floor(timeOfDay * 24);
+        const virtualHours12 = Math.floor(timeOfDay * 24);
         const virtualMinutes = Math.floor((timeOfDay * 24 * 60) % 60);
-        const ampm = virtualHours >= 12 ? 'PM' : 'AM';
-        const hours12 = virtualHours % 12 || 12;
+        const ampm = virtualHours12 >= 12 ? 'PM' : 'AM';
+        const hours12 = virtualHours12 % 12 || 12;
         
         // Update digital clock
         this.digitalClock.textContent = `${hours12}:${String(virtualMinutes).padStart(2, '0')} ${ampm}`;
         
         // Update analog clock
-        const hourAngle = ((virtualHours % 12) / 12) * 360 + (virtualMinutes / 60) * 30;
+        const hourAngle = ((virtualHours12 % 12) / 12) * 360 + (virtualMinutes / 60) * 30;
         const minuteAngle = (virtualMinutes / 60) * 360;
         
         this.hourHand.style.transform = `rotate(${hourAngle}deg)`;
@@ -340,24 +352,74 @@ class CityScene {
 
         // Keep existing sky layer transitions
         const skyLayers = {
-            dawn: [0.0, 0.25],
-            day: [0.25, 0.75],
-            dusk: [0.75, 0.85],
-            night: [0.85, 1.0]
+            dawn: [5/24, 7/24],      // 5am to 7am
+            day: [7/24, 18/24],      // 7am to 6pm
+            dusk: [18/24, 20/24],    // 6pm to 8pm
+            // moonrise: [20/24, 21/24], // 8pm to 9pm
+            night: [20/24, 5/24]      // 9pm to 5am
         };
 
-        Object.entries(skyLayers).forEach(([layer, [start, end]]) => {
-            const element = this.sky.querySelector(`.sky-layer.${layer}`);
-            if (timeOfDay >= start && timeOfDay < end) {
-                element.classList.remove('hidden');
-            } else {
-                element.classList.add('hidden');
-            }
-        });
+        // Determine current phase
+        const currentTime = timeOfDay * 24; // Convert to hours
+        let currentPhase;
 
-        // Sun animation (6am to 6pm)
-        if (timeOfDay >= 0.25 && timeOfDay < 0.75) {
-            const sunProgress = (timeOfDay - 0.25) * 2; // 0 to 1
+        // Debug log current time
+        console.log(`Current time: ${currentTime.toFixed(2)} hours`);
+
+        // Check for dusk-to-night transition (between 7pm and 8pm)
+        if (currentTime >= 19 && currentTime < 20) {
+            currentPhase = 'dusk';
+            // Gradually increase night layer opacity during dusk
+            const nightLayer = document.querySelector('.sky-layer.night');
+            const duskProgress = (currentTime - 19) / 1; // Progress from 0 to 1 during dusk hour
+            if (nightLayer) {
+                nightLayer.style.opacity = duskProgress.toFixed(2);
+                nightLayer.classList.remove('hidden');
+                console.log(`Night layer opacity: ${duskProgress.toFixed(2)}`);
+            }
+        }
+        // Regular phase checks
+        else if (currentTime >= 20 || currentTime < 5) {
+            currentPhase = 'night';
+        } else if (currentTime >= 5 && currentTime < 7) {
+            currentPhase = 'dawn';
+        } else if (currentTime >= 7 && currentTime < 18) {
+            currentPhase = 'day';
+        } 
+        
+        // else if (currentTime >= 20 && currentTime < 21) {
+        //     currentPhase = 'moonrise';
+        // }
+
+        console.log(`Selected phase: ${currentPhase}`);
+
+        // Store last phase to prevent unnecessary updates
+        if (this.lastPhase !== currentPhase) {
+            console.log(`Phase changing from ${this.lastPhase} to ${currentPhase}`);
+            
+            // Update all layers at once based on current phase
+            const allLayers = document.querySelectorAll('.sky-layer');
+            allLayers.forEach(layer => {
+                const shouldBeVisible = layer.classList.contains(currentPhase);
+                const isVisible = !layer.classList.contains('hidden');
+                
+                // Don't hide night layer during dusk transition
+                if (currentPhase === 'dusk' && layer.classList.contains('night')) {
+                    return;
+                }
+                
+                if (shouldBeVisible !== isVisible) {
+                    layer.classList.toggle('hidden');
+                    console.log(`${layer.classList[1]}: ${shouldBeVisible ? 'showing' : 'hiding'}`);
+                }
+            });
+            
+            this.lastPhase = currentPhase;
+        }
+
+        // Sun animation (7am to 6pm)
+        if (timeOfDay >= 7/24 && timeOfDay < 18/24) {
+            const sunProgress = (timeOfDay - 7/24) * (24/11); // Scale to 0-1 over 11-hour period
             const pos = this.calculateCelestialPosition(sunProgress);
             
             this.sun.style.transform = `translate(${pos.x}vw, ${pos.y}vh)`;
@@ -366,13 +428,15 @@ class CityScene {
             this.sun.style.display = 'none';
         }
 
-        // Moon animation (6pm to 6am)
-        if (timeOfDay >= 0.75 || timeOfDay < 0.25) {
+        // Moon animation (8pm to 7am)
+        if (timeOfDay >= 20/24 || timeOfDay < 7/24) {
             let moonProgress;
-            if (timeOfDay >= 0.75) {
-                moonProgress = (timeOfDay - 0.75) * 2; // 0 to 1 for 6pm to midnight
+            if (timeOfDay >= 20/24) {
+                // 8pm to midnight (4 hours)
+                moonProgress = (timeOfDay - 20/24) * (24/11);
             } else {
-                moonProgress = ((timeOfDay + 0.25) * 2); // 0 to 1 for midnight to 6am
+                // midnight to 7am (7 hours)
+                moonProgress = ((timeOfDay + 4/24) * (24/11));
             }
             
             const pos = this.calculateCelestialPosition(moonProgress);
@@ -384,7 +448,7 @@ class CityScene {
         }
 
         // Show/hide stars during night (with transition)
-        const isNight = timeOfDay >= 0.75 || timeOfDay < 0.25;
+        const isNight = timeOfDay >= 21/24 || timeOfDay < 5/24; // 9pm to 5am
         this.starContainer.style.opacity = isNight ? '1' : '0';
 
         // Animate clouds
