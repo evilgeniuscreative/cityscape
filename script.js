@@ -1,22 +1,39 @@
 // Configuration
 const CYCLE_DURATION = 40000; // Milliseconds for one 24-hour cycle (40 seconds)
 
+// Single initialization point using DOMContentLoaded
+let initializationInProgress = false;
+document.addEventListener('DOMContentLoaded', () => {
+    if (initializationInProgress) return;
+    initializationInProgress = true;
+
+    // Clear any existing state
+    sessionStorage.clear();
+    
+    // Cancel any existing animation frame
+    if (window.lastAnimationFrame) {
+        cancelAnimationFrame(window.lastAnimationFrame);
+        window.lastAnimationFrame = null;
+    }
+    
+    // Clean up existing instance
+    if (window.citySceneInstance) {
+        window.citySceneInstance.cleanup();
+        window.citySceneInstance = null;
+    }
+    
+    // Create new instance
+    new CityScene();
+    initializationInProgress = false;
+});
+
 class CityScene {
     constructor() {
-        // First, force cleanup of any existing instance
-        if (window.citySceneInstance) {
-            window.citySceneInstance.cleanup();
-            window.citySceneInstance = null;
-        }
-
-        // Clear any lingering animation frames
-        const existingId = window.localStorage.getItem('animationFrameId');
-        if (existingId) {
-            cancelAnimationFrame(parseInt(existingId));
-            window.localStorage.removeItem('animationFrameId');
-        }
-
-        // Configuration
+        // Clear any persisted state
+        sessionStorage.removeItem('citySceneState');
+        sessionStorage.removeItem('animationFrameId');
+        
+        // Basic initialization
         this.cycleDuration = CYCLE_DURATION;
         this.isPlaying = false;
         this.startTime = Date.now();
@@ -26,31 +43,18 @@ class CityScene {
         this.maxClouds = 6;
         this.lastPhase = null;
         this.animationFrameId = null;
-        this.lastAnimationTimestamp = 0;
-
-        // Store instance
-        window.citySceneInstance = this;
-
+        
         // Initialize scene
-        try {
-            this.initializeElements();
-            if (!this.sceneContainer) {
-                console.error('Scene container not found');
-                return;
-            }
-            
-            this.setupEventListeners();
-            this.setupScene();
-            this.setupCelestialBodies();
-            this.setupStars();
-            this.setupClouds();
-            
-            // Start animation
-            this.startAnimation();
-        } catch (error) {
-            console.error('Error initializing CityScene:', error);
-            this.cleanup();
-        }
+        this.initializeElements();
+        this.setupEventListeners();
+        this.setupScene();
+        this.setupCelestialBodies();
+        this.setupStars();
+        this.setupClouds();
+        
+        // Store instance and start
+        window.citySceneInstance = this;
+        this.startAnimation();
     }
 
     initializeFromStorage() {
@@ -354,14 +358,14 @@ class CityScene {
     }
 
     setupEventListeners() {
-        // Cleanup on page unload
-        window.addEventListener('beforeunload', () => this.cleanup());
-        window.addEventListener('pagehide', () => this.cleanup());
-
+        // Single cleanup handler for page unload
+        window.addEventListener('beforeunload', () => {
+            this.cleanup();
+        });
+        
         // Page visibility change handler
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
-                this.saveState();
                 this.pauseAnimation();
             } else {
                 this.resumeAnimation();
@@ -380,6 +384,34 @@ class CityScene {
                     playPauseButton.textContent = 'Pause';
                 }
             });
+        }
+
+        // Setup clock toggle
+        const toggleButton = document.getElementById('toggleClock');
+        const digitalClock = document.getElementById('digital-clock');
+        const analogClock = document.getElementById('analog-clock');
+        
+        if (toggleButton && digitalClock && analogClock) {
+            let isAnalog = false;
+            
+            toggleButton.addEventListener('click', () => {
+                isAnalog = !isAnalog;
+                
+                if (isAnalog) {
+                    digitalClock.style.cssText = 'display: none !important;';
+                    analogClock.style.display = 'block';
+                    toggleButton.style.cssText = 'box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2);';
+                } else {
+                    digitalClock.style.cssText = 'display: block !important;';
+                    analogClock.style.display = 'none';
+                    toggleButton.style.cssText = '';
+                }
+            });
+            
+            // Set initial state
+            digitalClock.style.cssText = 'display: block !important;';
+            analogClock.style.display = 'none';
+            toggleButton.style.cssText = '';
         }
 
         // Setup speed control if it exists
@@ -468,7 +500,7 @@ class CityScene {
             // Request next frame if still playing
             if (this.isPlaying && !this.isCleaningUp) {
                 this.animationFrameId = requestAnimationFrame((t) => this.animateScene(t));
-                window.localStorage.setItem('animationFrameId', this.animationFrameId.toString());
+                sessionStorage.setItem('animationFrameId', this.animationFrameId.toString());
             }
         } catch (error) {
             console.error('Animation error:', error);
@@ -491,8 +523,22 @@ class CityScene {
         this.updateClouds();
         
         // Start animation loop and store ID
-        this.animationFrameId = requestAnimationFrame((t) => this.animateScene(t));
-        window.localStorage.setItem('animationFrameId', this.animationFrameId.toString());
+        const animate = (timestamp) => {
+            if (!this.isPlaying) return;
+            
+            const elapsed = Date.now() - this.startTime;
+            const timeOfDay = (elapsed % this.cycleDuration) / this.cycleDuration;
+            
+            this.updatePhases(timeOfDay);
+            this.updateCelestialBodies(timeOfDay);
+            this.updateClock(timeOfDay);
+            this.updateClouds();
+            
+            // Store frame ID globally for cleanup
+            window.lastAnimationFrame = requestAnimationFrame(animate);
+        };
+        
+        window.lastAnimationFrame = requestAnimationFrame(animate);
     }
 
     updateCelestialBodies(timeOfDay) {
@@ -687,14 +733,17 @@ class CityScene {
     }
 
     cleanup() {
-        // Cancel animation frame
-        if (this.animationFrameId) {
-            cancelAnimationFrame(this.animationFrameId);
-            this.animationFrameId = null;
-            window.localStorage.removeItem('animationFrameId');
+        // Stop animation
+        this.isPlaying = false;
+        if (window.lastAnimationFrame) {
+            cancelAnimationFrame(window.lastAnimationFrame);
+            window.lastAnimationFrame = null;
         }
 
-        // Reset all visual elements
+        // Clear any stored state
+        sessionStorage.clear();
+
+        // Reset visual elements
         if (this.sun) this.sun.style.display = 'none';
         if (this.moon) this.moon.style.display = 'none';
         if (this.starContainer) this.starContainer.style.opacity = '0';
@@ -707,76 +756,13 @@ class CityScene {
         });
 
         // Clear clouds
-        this.clouds.forEach(cloud => cloud.remove());
-        this.clouds = [];
+        if (this.clouds) {
+            this.clouds.forEach(cloud => cloud && cloud.remove());
+            this.clouds = [];
+        }
 
-        // Reset scene state
-        this.isPlaying = false;
+        // Reset state
         this.lastPhase = null;
-        this.lastAnimationTimestamp = 0;
-
-        // Clear instance
         window.citySceneInstance = null;
     }
-
-    setupEventListeners() {
-        // Cleanup on page unload
-        window.addEventListener('beforeunload', () => this.cleanup());
-        window.addEventListener('pagehide', () => this.cleanup());
-
-        // Page visibility change handler
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                this.saveState();
-                this.pauseAnimation();
-            } else {
-                this.resumeAnimation();
-            }
-        });
-
-        // Setup play/pause button
-        const playPauseButton = document.getElementById('playPause');
-        if (playPauseButton) {
-            playPauseButton.addEventListener('click', () => {
-                if (this.isPlaying) {
-                    this.pauseAnimation();
-                    playPauseButton.textContent = 'Play';
-                } else {
-                    this.resumeAnimation();
-                    playPauseButton.textContent = 'Pause';
-                }
-            });
-        }
-
-        // Setup speed control if it exists
-        const speedSlider = document.getElementById('speedSlider');
-        if (speedSlider) {
-            speedSlider.addEventListener('input', (e) => {
-                const now = Date.now();
-                const elapsed = now - this.startTime;
-                const currentProgress = (elapsed % this.cycleDuration) / this.cycleDuration;
-                
-                const newDuration = parseFloat(e.target.value);
-                this.cycleDuration = newDuration;
-                this.startTime = now - (currentProgress * this.cycleDuration);
-                
-                const speedDisplay = document.getElementById('speedDisplay');
-                if (speedDisplay) {
-                    const minutes = Math.floor(newDuration / 60000);
-                    const seconds = Math.floor((newDuration % 60000) / 1000);
-                    speedDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-                }
-            });
-        }
-    }
 }
-
-// Initialize scene only after DOM is fully loaded
-document.addEventListener('DOMContentLoaded', async () => {
-    // Ensure any existing instance is cleaned up
-    if (window.citySceneInstance) {
-        await window.citySceneInstance.cleanup();
-    }
-    // Create new instance
-    new CityScene();
-});
