@@ -35,10 +35,11 @@ class CityScene {
         this.animationFrameId = null;
         this.lastAnimationTimestamp = 0;
 
-        // Setup cleanup handlers
-        window.addEventListener('unload', () => this.cleanup());
-        window.addEventListener('beforeunload', () => this.cleanup());
-        window.addEventListener('pagehide', () => this.cleanup());
+        // Setup cleanup handlers for page unload
+        window.addEventListener('beforeunload', () => {
+            this.cleanup();
+            window.citySceneInstance = null;
+        });
 
         try {
             this.initializeElements();
@@ -568,6 +569,14 @@ class CityScene {
         
         this.isPlaying = true;
         this.lastAnimationTimestamp = 0;
+        
+        // Force initial phase update
+        const elapsed = Date.now() - this.startTime;
+        const timeOfDay = (elapsed % this.cycleDuration) / this.cycleDuration;
+        this.updatePhases(timeOfDay);
+        this.updateCelestialBodies(timeOfDay);
+        
+        // Start animation loop
         this.animationFrameId = requestAnimationFrame((t) => this.animateScene(t));
     }
 
@@ -576,18 +585,27 @@ class CityScene {
             cancelAnimationFrame(this.animationFrameId);
             this.animationFrameId = null;
         }
-        // Reset all sky layers to their initial state
+        
+        // Reset all visual elements
+        if (this.sun) this.sun.style.display = 'none';
+        if (this.moon) this.moon.style.display = 'none';
+        if (this.starContainer) this.starContainer.style.opacity = '0';
+        
+        // Reset sky layers
         const allLayers = document.querySelectorAll('.sky-layer');
         allLayers.forEach(layer => {
             layer.classList.add('hidden');
             layer.style.opacity = '';
         });
-        // Reset celestial bodies
-        if (this.sun) this.sun.style.display = 'none';
-        if (this.moon) this.moon.style.display = 'none';
-        if (this.starContainer) this.starContainer.style.opacity = '0';
-        // Clear the singleton instance
-        window.citySceneInstance = null;
+        
+        // Reset scene state
+        this.isPlaying = false;
+        this.lastPhase = null;
+        this.lastAnimationTimestamp = 0;
+        
+        // Clear clouds
+        this.clouds.forEach(cloud => cloud.remove());
+        this.clouds = [];
     }
 
     interpolateColor(color1, color2, factor) {
@@ -613,7 +631,13 @@ class CityScene {
     }
 }
 
-// Start the scene when the page loads
-window.addEventListener('load', () => {
+// Start the scene when the page loads or reloads
+document.addEventListener('DOMContentLoaded', () => {
+    // Clean up any existing instance
+    if (window.citySceneInstance) {
+        window.citySceneInstance.cleanup();
+        window.citySceneInstance = null;
+    }
+    // Create new instance
     new CityScene();
 });
