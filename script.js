@@ -1,27 +1,20 @@
 // Configuration
-const CYCLE_DURATION = 180000; // Milliseconds for one 24-hour cycle (24 seconds)
-
-// Load fresh uncached files every time
-
-window.onload = function() {
-    const scripts = document.getElementsByTagName('script');
-    for (let i = 0; i < scripts.length; i++) {
-      const script = scripts[i];
-      const src = script.src;
-      if (src) {
-        script.src = src + '?v=' + Date.now();
-      }
-    }
-  };
+const CYCLE_DURATION = 40000; // Milliseconds for one 24-hour cycle (40 seconds)
 
 class CityScene {
     constructor() {
-        // Prevent multiple instances
+        // First, force cleanup of any existing instance
         if (window.citySceneInstance) {
-            console.warn('CityScene already exists');
-            return window.citySceneInstance;
+            window.citySceneInstance.cleanup();
+            window.citySceneInstance = null;
         }
-        window.citySceneInstance = this;
+
+        // Clear any lingering animation frames
+        const existingId = window.localStorage.getItem('animationFrameId');
+        if (existingId) {
+            cancelAnimationFrame(parseInt(existingId));
+            window.localStorage.removeItem('animationFrameId');
+        }
 
         // Configuration
         this.cycleDuration = CYCLE_DURATION;
@@ -35,20 +28,39 @@ class CityScene {
         this.animationFrameId = null;
         this.lastAnimationTimestamp = 0;
 
-        // Setup cleanup handlers for page unload
-        window.addEventListener('beforeunload', () => {
-            this.cleanup();
-            window.citySceneInstance = null;
-        });
+        // Store instance
+        window.citySceneInstance = this;
 
+        // Initialize scene
         try {
             this.initializeElements();
+            if (!this.sceneContainer) {
+                console.error('Scene container not found');
+                return;
+            }
+            
+            this.setupEventListeners();
             this.setupScene();
             this.setupCelestialBodies();
             this.setupStars();
             this.setupClouds();
-            this.setupEventListeners();
+            
+            // Start animation
             this.startAnimation();
+        } catch (error) {
+            console.error('Error initializing CityScene:', error);
+            this.cleanup();
+        }
+    }
+
+    initializeFromStorage() {
+        try {
+            const savedState = sessionStorage.getItem('citySceneState');
+            if (savedState) {
+                const state = JSON.parse(savedState);
+                this.startTime = state.startTime || Date.now();
+                this.isDark = state.isDark || false;
+            }
         } catch (error) {
             console.error('Error initializing CityScene:', error);
             this.cleanup();
@@ -342,74 +354,178 @@ class CityScene {
     }
 
     setupEventListeners() {
-        // Setup clock toggle
-        const toggleButton = document.getElementById('toggleClock');
-        toggleButton.addEventListener('click', () => {
-            this.digitalClock.classList.toggle('active');
-            this.analogClock.classList.toggle('active');
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => this.cleanup());
+        window.addEventListener('pagehide', () => this.cleanup());
+
+        // Page visibility change handler
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                this.saveState();
+                this.pauseAnimation();
+            } else {
+                this.resumeAnimation();
+            }
         });
 
-        // Setup speed control
-        this.speedSlider.addEventListener('input', (e) => {
-            const newDuration = parseInt(e.target.value);
-            // Store current progress before changing duration
-            const now = Date.now();
-            const elapsed = now - this.startTime;
-            const currentProgress = (elapsed % this.cycleDuration) / this.cycleDuration;
-            
-            // Update duration
-            this.cycleDuration = newDuration;
-            
-            // Adjust start time to maintain current position in cycle
-            this.startTime = now - (currentProgress * this.cycleDuration);
-            
-            // Update display
-            const minutes = (newDuration / 1000 / 60).toFixed(1);
-            this.speedDisplay.textContent = `Cycle: ${minutes} minutes`;
-        });
+        // Setup play/pause button
+        const playPauseButton = document.getElementById('playPause');
+        if (playPauseButton) {
+            playPauseButton.addEventListener('click', () => {
+                if (this.isPlaying) {
+                    this.pauseAnimation();
+                    playPauseButton.textContent = 'Play';
+                } else {
+                    this.resumeAnimation();
+                    playPauseButton.textContent = 'Pause';
+                }
+            });
+        }
+
+        // Setup speed control if it exists
+        const speedSlider = document.getElementById('speedSlider');
+        if (speedSlider) {
+            speedSlider.addEventListener('input', (e) => {
+                const now = Date.now();
+                const elapsed = now - this.startTime;
+                const currentProgress = (elapsed % this.cycleDuration) / this.cycleDuration;
+                
+                const newDuration = parseFloat(e.target.value);
+                this.cycleDuration = newDuration;
+                this.startTime = now - (currentProgress * this.cycleDuration);
+                
+                const speedDisplay = document.getElementById('speedDisplay');
+                if (speedDisplay) {
+                    const minutes = Math.floor(newDuration / 60000);
+                    const seconds = Math.floor((newDuration % 60000) / 1000);
+                    speedDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                }
+            });
+        }
     }
 
-    calculateCelestialPosition(progress) {
-        // Map progress (0-1) to x position across viewport width (-10 to 110)
-        const x = progress * 120 - 10; // Start off-screen left, end off-screen right
+    saveState() {
+        const state = {
+            startTime: this.startTime,
+            isDark: this.isDark,
+            lastPhase: this.lastPhase
+        };
+        sessionStorage.setItem('citySceneState', JSON.stringify(state));
+    }
+
+    pauseAnimation() {
+        if (!this.isPlaying) return;
         
-        // Parabola parameters
-        const h = 50;  // vertex x-coordinate (center of viewport)
-        const k = 10;  // vertex y-coordinate (10vh from top - apogee)
-        const a = 0.02;  // coefficient for steeper curve
+        this.isPlaying = false;
+        if (this.animationFrameId) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+        }
         
-        // Calculate y position
-        // y = ax² + bx + c form of parabola
-        // When x = -10 or 110, y should be ~90vh
-        // When x = 50, y should be 10vh (k)
-        const y = a * Math.pow(x - h, 2) + k;
+        // Pause UFO animation
+        const ufo = document.querySelector('.ufo');
+        if (ufo) {
+            ufo.style.animationPlayState = 'paused';
+        }
         
-        return { x, y };
+        // Store the exact moment we paused
+        this.pausedAt = Date.now();
+    }
+
+    resumeAnimation() {
+        if (this.isPlaying) return;
+        
+        // Resume UFO animation
+        const ufo = document.querySelector('.ufo');
+        if (ufo) {
+            ufo.style.animationPlayState = 'running';
+        }
+        
+        // Adjust start time to account for pause duration
+        if (this.pausedAt) {
+            const pauseDuration = Date.now() - this.pausedAt;
+            this.startTime += pauseDuration;
+            this.pausedAt = null;
+        }
+        
+        this.isPlaying = true;
+        this.animationFrameId = requestAnimationFrame((t) => this.animateScene(t));
     }
 
     animateScene(timestamp) {
-        if (!this.isPlaying) return;
-
-        // Throttle animations to 60fps
-        if (timestamp - this.lastAnimationTimestamp < 16) {
-            this.animationFrameId = requestAnimationFrame((t) => this.animateScene(t));
-            return;
-        }
-        this.lastAnimationTimestamp = timestamp;
+        if (!this.isPlaying || this.isCleaningUp) return;
 
         try {
             const elapsed = Date.now() - this.startTime;
             const timeOfDay = (elapsed % this.cycleDuration) / this.cycleDuration;
             
+            // Update all components
             this.updatePhases(timeOfDay);
             this.updateCelestialBodies(timeOfDay);
-            this.updateClouds();
             this.updateClock(timeOfDay);
+            this.updateClouds();
 
-            this.animationFrameId = requestAnimationFrame((t) => this.animateScene(t));
+            // Request next frame if still playing
+            if (this.isPlaying && !this.isCleaningUp) {
+                this.animationFrameId = requestAnimationFrame((t) => this.animateScene(t));
+                window.localStorage.setItem('animationFrameId', this.animationFrameId.toString());
+            }
         } catch (error) {
             console.error('Animation error:', error);
             this.cleanup();
+        }
+    }
+
+    startAnimation() {
+        if (this.isPlaying) return;
+        
+        this.isPlaying = true;
+        
+        // Force initial updates
+        const elapsed = Date.now() - this.startTime;
+        const timeOfDay = (elapsed % this.cycleDuration) / this.cycleDuration;
+        
+        this.updatePhases(timeOfDay);
+        this.updateCelestialBodies(timeOfDay);
+        this.updateClock(timeOfDay);
+        this.updateClouds();
+        
+        // Start animation loop and store ID
+        this.animationFrameId = requestAnimationFrame((t) => this.animateScene(t));
+        window.localStorage.setItem('animationFrameId', this.animationFrameId.toString());
+    }
+
+    updateCelestialBodies(timeOfDay) {
+        // Update sun
+        if (timeOfDay >= 7/24 && timeOfDay < 18/24) {
+            const sunProgress = (timeOfDay - 7/24) * (24/11);
+            const pos = this.calculateCelestialPosition(sunProgress);
+            if (this.sun) {
+                this.sun.style.transform = `translate(${pos.x}vw, ${pos.y}vh)`;
+                this.sun.style.display = 'block';
+            }
+        } else if (this.sun) {
+            this.sun.style.display = 'none';
+        }
+
+        // Update moon
+        if (timeOfDay >= 20/24 || timeOfDay < 7/24) {
+            const moonProgress = timeOfDay >= 20/24 ? 
+                (timeOfDay - 20/24) * (24/11) : 
+                ((timeOfDay + 4/24) * (24/11));
+            const pos = this.calculateCelestialPosition(moonProgress);
+            if (this.moon) {
+                this.moon.style.transform = `translate(${pos.x}vw, ${pos.y}vh)`;
+                this.moon.style.display = 'block';
+            }
+        } else if (this.moon) {
+            this.moon.style.display = 'none';
+        }
+
+        // Update stars
+        if (this.starContainer) {
+            const isNight = timeOfDay >= 21/24 || timeOfDay < 5/24;
+            this.starContainer.style.opacity = isNight ? '1' : '0';
         }
     }
 
@@ -428,21 +544,34 @@ class CityScene {
             currentPhase = 'day';
         }
 
-        // Only update DOM if phase changed
+        // Only update DOM if phase changed and elements exist
         if (this.lastPhase !== currentPhase) {
             const allLayers = document.querySelectorAll('.sky-layer');
-            allLayers.forEach(layer => {
-                if (currentPhase === 'dusk' && layer.classList.contains('night')) {
-                    return;
+            if (allLayers.length > 0) {
+                allLayers.forEach(layer => {
+                    if (currentPhase === 'dusk' && layer.classList.contains('night')) {
+                        return;
+                    }
+                    const shouldBeVisible = layer.classList.contains(currentPhase);
+                    layer.classList.toggle('hidden', !shouldBeVisible);
+                });
+                
+                this.lastPhase = currentPhase;
+            }
+
+            // Update scene container class
+            if (this.sceneContainer) {
+                if (currentPhase === 'night' || currentPhase === 'dusk') {
+                    this.sceneContainer.classList.add('night');
+                    this.sceneContainer.classList.remove('day');
+                } else {
+                    this.sceneContainer.classList.add('day');
+                    this.sceneContainer.classList.remove('night');
                 }
-                const shouldBeVisible = layer.classList.contains(currentPhase);
-                layer.classList.toggle('hidden', !shouldBeVisible);
-            });
-            
-            this.lastPhase = currentPhase;
+            }
         }
 
-        // Handle dusk transition`
+        // Handle dusk transition
         if (currentPhase === 'dusk') {
             const nightLayer = document.querySelector('.sky-layer.night');
             if (nightLayer) {
@@ -452,75 +581,16 @@ class CityScene {
             }
         }
 
-        // Handle lamp light and other day/night transitions
-
+        // Handle lamp light transitions
         const lampDown = document.getElementById('lamp-down');
-    
-        if(currentPhase === 'night' || currentPhase === 'dusk') {
-            lampDown.classList.add('night');
-            lampDown.classList.remove('day');
-            this.sceneContainer.classList.add('night');
-            this.sceneContainer.classList.remove('day');
-        } else {
-            lampDown.classList.add('day');
-            lampDown.classList.remove('night');
-            this.sceneContainer.classList.add('day');
-            this.sceneContainer.classList.remove('night');
-        }
-    }
-
-    updateCelestialBodies(timeOfDay) {
-        // Update sun
-        if (timeOfDay >= 7/24 && timeOfDay < 18/24) {
-            const sunProgress = (timeOfDay - 7/24) * (24/11);
-            const pos = this.calculateCelestialPosition(sunProgress);
-            this.sun.style.transform = `translate(${pos.x}vw, ${pos.y}vh)`;
-            this.sun.style.display = 'block';
-        } else {
-            this.sun.style.display = 'none';
-        }
-
-        // Update moon
-        if (timeOfDay >= 20/24 || timeOfDay < 7/24) {
-            const moonProgress = timeOfDay >= 20/24 ? 
-                (timeOfDay - 20/24) * (24/11) : 
-                ((timeOfDay + 4/24) * (24/11));
-            const pos = this.calculateCelestialPosition(moonProgress);
-            this.moon.style.transform = `translate(${pos.x}vw, ${pos.y}vh)`;
-            this.moon.style.display = 'block';
-        } else {
-            this.moon.style.display = 'none';
-        }
-
-        // Update stars
-        const isNight = timeOfDay >= 21/24 || timeOfDay < 5/24;
-        this.starContainer.style.opacity = isNight ? '1' : '0';
-
-    }
-
-    updateClouds() {
-        // Create a new array for updated clouds
-        const remainingClouds = [];
-        
-        for (const cloud of this.clouds) {
-            const left = parseFloat(cloud.style.left);
-            const speed = parseFloat(cloud.dataset.speed);
-            
-            if (left <= 120) {
-                cloud.style.left = (left + speed) + '%';
-                remainingClouds.push(cloud);
+        if (lampDown) {
+            if (currentPhase === 'night' || currentPhase === 'dusk') {
+                lampDown.classList.add('night');
+                lampDown.classList.remove('day');
             } else {
-                cloud.remove();
+                lampDown.classList.add('day');
+                lampDown.classList.remove('night');
             }
-        }
-
-        this.clouds = remainingClouds;
-
-        // Add new clouds if needed
-        if (Math.random() < 0.005 && this.clouds.length < this.maxClouds) {
-            this.createCloud(false);
-        } else if (this.clouds.length < this.minClouds) {
-            this.createCloud(false);
         }
     }
 
@@ -551,61 +621,47 @@ class CityScene {
         }
     }
 
-    startAnimation() {
-        if (this.isPlaying) return;
+    updateClouds() {
+        const remainingClouds = [];
         
-        const now = new Date();
-        const currentHour = now.getHours();
-        const isDayTime = currentHour >= 6 && currentHour < 18;
-        
-        if (!isDayTime) {
-            this.startTime = Date.now() - this.cycleDuration;
-            this.isDark = true;
-            if (this.sceneContainer) {
-                this.sceneContainer.classList.remove('scene-day');
-                this.sceneContainer.classList.add('scene-night');
+        for (const cloud of this.clouds) {
+            const left = parseFloat(cloud.style.left);
+            const speed = parseFloat(cloud.dataset.speed);
+            
+            if (left <= 120) {
+                cloud.style.left = (left + speed) + '%';
+                remainingClouds.push(cloud);
+            } else {
+                cloud.remove();
             }
         }
-        
-        this.isPlaying = true;
-        this.lastAnimationTimestamp = 0;
-        
-        // Force initial phase update
-        const elapsed = Date.now() - this.startTime;
-        const timeOfDay = (elapsed % this.cycleDuration) / this.cycleDuration;
-        this.updatePhases(timeOfDay);
-        this.updateCelestialBodies(timeOfDay);
-        
-        // Start animation loop
-        this.animationFrameId = requestAnimationFrame((t) => this.animateScene(t));
+
+        this.clouds = remainingClouds;
+
+        // Add new clouds if needed
+        if (Math.random() < 0.01 && this.clouds.length < this.maxClouds) {
+            this.createCloud(true);
+        } else if (this.clouds.length < this.minClouds) {
+            this.createCloud(true);
+        }
     }
 
-    cleanup() {
-        if (this.animationFrameId) {
-            cancelAnimationFrame(this.animationFrameId);
-            this.animationFrameId = null;
-        }
+    calculateCelestialPosition(progress) {
+        // Map progress (0-1) to x position across viewport width (-10 to 110)
+        const x = progress * 120 - 10; // Start off-screen left, end off-screen right
         
-        // Reset all visual elements
-        if (this.sun) this.sun.style.display = 'none';
-        if (this.moon) this.moon.style.display = 'none';
-        if (this.starContainer) this.starContainer.style.opacity = '0';
+        // Parabola parameters
+        const h = 50;  // vertex x-coordinate (center of viewport)
+        const k = 10;  // vertex y-coordinate (10vh from top - apogee)
+        const a = 0.02;  // coefficient for steeper curve
         
-        // Reset sky layers
-        const allLayers = document.querySelectorAll('.sky-layer');
-        allLayers.forEach(layer => {
-            layer.classList.add('hidden');
-            layer.style.opacity = '';
-        });
+        // Calculate y position
+        // y = ax² + bx + c form of parabola
+        // When x = -10 or 110, y should be ~90vh
+        // When x = 50, y should be 10vh (k)
+        const y = a * Math.pow(x - h, 2) + k;
         
-        // Reset scene state
-        this.isPlaying = false;
-        this.lastPhase = null;
-        this.lastAnimationTimestamp = 0;
-        
-        // Clear clouds
-        this.clouds.forEach(cloud => cloud.remove());
-        this.clouds = [];
+        return { x, y };
     }
 
     interpolateColor(color1, color2, factor) {
@@ -629,14 +685,97 @@ class CityScene {
             b: parseInt(ctx.fillStyle.slice(5, 7), 16)
         };
     }
+
+    cleanup() {
+        // Cancel animation frame
+        if (this.animationFrameId) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+            window.localStorage.removeItem('animationFrameId');
+        }
+
+        // Reset all visual elements
+        if (this.sun) this.sun.style.display = 'none';
+        if (this.moon) this.moon.style.display = 'none';
+        if (this.starContainer) this.starContainer.style.opacity = '0';
+
+        // Reset sky layers
+        const allLayers = document.querySelectorAll('.sky-layer');
+        allLayers.forEach(layer => {
+            layer.classList.add('hidden');
+            layer.style.opacity = '';
+        });
+
+        // Clear clouds
+        this.clouds.forEach(cloud => cloud.remove());
+        this.clouds = [];
+
+        // Reset scene state
+        this.isPlaying = false;
+        this.lastPhase = null;
+        this.lastAnimationTimestamp = 0;
+
+        // Clear instance
+        window.citySceneInstance = null;
+    }
+
+    setupEventListeners() {
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => this.cleanup());
+        window.addEventListener('pagehide', () => this.cleanup());
+
+        // Page visibility change handler
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                this.saveState();
+                this.pauseAnimation();
+            } else {
+                this.resumeAnimation();
+            }
+        });
+
+        // Setup play/pause button
+        const playPauseButton = document.getElementById('playPause');
+        if (playPauseButton) {
+            playPauseButton.addEventListener('click', () => {
+                if (this.isPlaying) {
+                    this.pauseAnimation();
+                    playPauseButton.textContent = 'Play';
+                } else {
+                    this.resumeAnimation();
+                    playPauseButton.textContent = 'Pause';
+                }
+            });
+        }
+
+        // Setup speed control if it exists
+        const speedSlider = document.getElementById('speedSlider');
+        if (speedSlider) {
+            speedSlider.addEventListener('input', (e) => {
+                const now = Date.now();
+                const elapsed = now - this.startTime;
+                const currentProgress = (elapsed % this.cycleDuration) / this.cycleDuration;
+                
+                const newDuration = parseFloat(e.target.value);
+                this.cycleDuration = newDuration;
+                this.startTime = now - (currentProgress * this.cycleDuration);
+                
+                const speedDisplay = document.getElementById('speedDisplay');
+                if (speedDisplay) {
+                    const minutes = Math.floor(newDuration / 60000);
+                    const seconds = Math.floor((newDuration % 60000) / 1000);
+                    speedDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                }
+            });
+        }
+    }
 }
 
-// Start the scene when the page loads or reloads
-document.addEventListener('DOMContentLoaded', () => {
-    // Clean up any existing instance
+// Initialize scene only after DOM is fully loaded
+document.addEventListener('DOMContentLoaded', async () => {
+    // Ensure any existing instance is cleaned up
     if (window.citySceneInstance) {
-        window.citySceneInstance.cleanup();
-        window.citySceneInstance = null;
+        await window.citySceneInstance.cleanup();
     }
     // Create new instance
     new CityScene();
