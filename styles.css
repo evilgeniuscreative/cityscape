@@ -385,48 +385,39 @@ body {
 }
 
 .window-container {
-    height: 100%;
+    padding: 10px;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
-    gap: 10px;
+    height: 100%;
     box-sizing: border-box;
-    overflow: hidden;
 }
 
 .floor {
     display: flex;
-    justify-content: space-around;
-    gap: 5px;
-    height: 25px;
-    box-sizing: border-box;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 6px;
+}
+
+.floor:last-child {
+    margin-bottom: 0;
 }
 
 .window {
-    width: 15px;
-    height: 20px;
+    width: 25px;
+    height: 35px;
+    min-width:25px;
     background: linear-gradient(45deg, #B9E1FF 0%, #1C6EA4 100%);
-    border-radius: 2px;
-    transition: all 0.5s ease;
-    flex-shrink: 0;
+    transition: background-color 0.3s ease;
 }
 
-.window.lit {
-    background: #FFD700;
-    box-shadow: 0 0 10px rgba(255, 255, 224, 0.5);
+.night .window:not(.lit) {
+    background-color: #1a1a1a;
 }
 
-.scene-day .building {
-    background: #95a5a6;
-}
-
-.scene-night .window.lit {
-    background:#FFD700;
-    box-shadow: 0 0 15px rgba(255, 255, 224, 0.6);
-}
-
-.scene-night .window {
-    background:#555555;
+.night .window.lit {
+    background-color: #ffeb3b;
+    box-shadow: 0 0 10px rgba(255, 235, 59, 0.5);
 }
 
 .house {

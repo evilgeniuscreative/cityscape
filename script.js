@@ -96,7 +96,7 @@ class CityScene {
         const existingBuildings = this.cityscape.querySelectorAll('.building');
         existingBuildings.forEach(building => building.remove());
 
-        const buildingCount = Math.floor(Math.random() * 9) + 8; // 9-17 buildings
+        const buildingCount = Math.floor(Math.random() * 10) + 8; // 10-18 buildings
         const containerWidth = window.innerWidth;
         const minSpacing = 100; // Minimum space between buildings
         
@@ -114,8 +114,8 @@ class CityScene {
             const building = document.createElement('div');
             building.className = 'building';
             
-            // Random height between 100 and 300 pixels
-            const height = Math.random() * 200 + 100;
+            // Random height between 100 and 500 pixels
+            const height = Math.random() * 400 + 100;
             building.style.height = `${height}px`;
             
             // Random width between 100 and 150 pixels
@@ -133,21 +133,29 @@ class CityScene {
             windowContainer.className = 'window-container';
             building.appendChild(windowContainer);
             
-            // Add windows
-            const floorHeight = 40; // Height of each floor including gap
-            const floors = Math.floor((height - 20) / floorHeight); // Account for padding
-            const windowWidth = 20; // Width of each window including gap
-            const windowsPerFloor = Math.floor((width - 25) / windowWidth); // Account for padding
+            // Calculate number of floors and windows based on building dimensions
+            const buildingPadding = 15;
+            const windowHeight = 35;
+            const windowWidth = 25;
+            const windowGap = 6;
             
+            // Calculate available space for windows
+            const availableHeight = height - (buildingPadding * 2);
+            const availableWidth = width - (buildingPadding * 2);
+            
+            // Calculate number of floors and windows that will fit
+            const floorHeight = windowHeight + windowGap;
+            const floors = Math.floor(availableHeight / floorHeight);
+            const windowsPerFloor = Math.floor((availableWidth + windowGap) / (windowWidth + windowGap));
+            
+            // Create floors and windows
             for (let floor = 0; floor < floors; floor++) {
                 const floorDiv = document.createElement('div');
                 floorDiv.className = 'floor';
                 
-                
                 for (let w = 0; w < windowsPerFloor; w++) {
                     const window = document.createElement('div');
                     window.className = 'window';
-                    // Random chance for window to be lit
                     if (Math.random() < 0.3) {
                         window.classList.add('lit');
                     }
@@ -249,7 +257,7 @@ class CityScene {
             lamp.style.left = `${i * spacing}px`;
             
             const light = document.createElement('div');
-            light.className = 'lamp-light';
+            light.className = 'lamp-light day';
             
             const down = document.createElement('div');
             down.className = 'lamp-down';
@@ -433,7 +441,7 @@ class CityScene {
             this.lastPhase = currentPhase;
         }
 
-        // Handle dusk transition
+        // Handle dusk transition`
         if (currentPhase === 'dusk') {
             const nightLayer = document.querySelector('.sky-layer.night');
             if (nightLayer) {
@@ -441,6 +449,22 @@ class CityScene {
                 nightLayer.style.opacity = duskProgress.toFixed(2);
                 nightLayer.classList.remove('hidden');
             }
+        }
+
+        // Handle lamp light and other day/night transitions
+
+        const lampDown = document.getElementById('lamp-down');
+    
+        if(currentPhase === 'night' || currentPhase === 'dusk') {
+            lampDown.classList.add('night');
+            lampDown.classList.remove('day');
+            this.sceneContainer.classList.add('night');
+            this.sceneContainer.classList.remove('day');
+        } else {
+            lampDown.classList.add('day');
+            lampDown.classList.remove('night');
+            this.sceneContainer.classList.add('day');
+            this.sceneContainer.classList.remove('night');
         }
     }
 
@@ -470,6 +494,7 @@ class CityScene {
         // Update stars
         const isNight = timeOfDay >= 21/24 || timeOfDay < 5/24;
         this.starContainer.style.opacity = isNight ? '1' : '0';
+
     }
 
     updateClouds() {
