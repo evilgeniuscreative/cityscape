@@ -1,38 +1,18 @@
 // Configuration
 const CYCLE_DURATION = 40000; // Milliseconds for one 24-hour cycle (40 seconds)
 
-// Single initialization point using DOMContentLoaded
-let initializationInProgress = false;
-document.addEventListener('DOMContentLoaded', () => {
-    if (initializationInProgress) return;
-    initializationInProgress = true;
+// Track active instance
+let activeScene = null;
 
-    // Clear any existing state
-    sessionStorage.clear();
-    
-    // Cancel any existing animation frame
-    if (window.lastAnimationFrame) {
-        cancelAnimationFrame(window.lastAnimationFrame);
-        window.lastAnimationFrame = null;
+// Initialize scene only after DOM is fully loaded
+document.addEventListener('DOMContentLoaded', () => {
+    if (!activeScene) {
+        activeScene = new CityScene();
     }
-    
-    // Clean up existing instance
-    if (window.citySceneInstance) {
-        window.citySceneInstance.cleanup();
-        window.citySceneInstance = null;
-    }
-    
-    // Create new instance
-    new CityScene();
-    initializationInProgress = false;
 });
 
 class CityScene {
     constructor() {
-        // Clear any persisted state
-        sessionStorage.removeItem('citySceneState');
-        sessionStorage.removeItem('animationFrameId');
-        
         // Basic initialization
         this.cycleDuration = CYCLE_DURATION;
         this.isPlaying = false;
@@ -52,22 +32,115 @@ class CityScene {
         this.setupStars();
         this.setupClouds();
         
-        // Store instance and start
-        window.citySceneInstance = this;
+        // Start animation
         this.startAnimation();
     }
 
-    initializeFromStorage() {
-        try {
-            const savedState = sessionStorage.getItem('citySceneState');
-            if (savedState) {
-                const state = JSON.parse(savedState);
-                this.startTime = state.startTime || Date.now();
-                this.isDark = state.isDark || false;
+    // Setup all event listeners for the scene
+    setupEventListeners() {
+        // Page visibility change handler
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                this.pauseAnimation();
+            } else {
+                this.resumeAnimation();
             }
-        } catch (error) {
-            console.error('Error initializing CityScene:', error);
-            this.cleanup();
+        });
+
+        // Setup restart button
+        const restartButton = document.getElementById('restart');
+        if (restartButton) {
+            restartButton.addEventListener('click', () => {
+                // Disable button during restart
+                restartButton.disabled = true;
+                restartButton.style.opacity = '0.5';
+                restartButton.style.cursor = 'not-allowed';
+                
+                try {
+                    // Stop current scene
+                    this.cleanup();
+                    
+                    // Small delay to ensure cleanup completes
+                    setTimeout(() => {
+                        // Create new scene
+                        activeScene = new CityScene();
+                        
+                        // Reset button
+                        restartButton.disabled = false;
+                        restartButton.style.opacity = '1';
+                        restartButton.style.cursor = 'pointer';
+                    }, 100);
+                } catch (error) {
+                    console.error('Error during restart:', error);
+                    // Reset button on error
+                    restartButton.disabled = false;
+                    restartButton.style.opacity = '1';
+                    restartButton.style.cursor = 'pointer';
+                }
+            });
+        }
+
+        // Setup play/pause button
+        const playPauseButton = document.getElementById('playPause');
+        if (playPauseButton) {
+            playPauseButton.addEventListener('click', () => {
+                if (this.isPlaying) {
+                    this.pauseAnimation();
+                    playPauseButton.textContent = 'Play';
+                } else {
+                    this.resumeAnimation();
+                    playPauseButton.textContent = 'Pause';
+                }
+            });
+        }
+
+        // Setup clock toggle
+        const toggleButton = document.getElementById('toggleClock');
+        const digitalClock = document.getElementById('digital-clock');
+        const analogClock = document.getElementById('analog-clock');
+        
+        if (toggleButton && digitalClock && analogClock) {
+            let isAnalog = false;
+            
+            toggleButton.addEventListener('click', () => {
+                isAnalog = !isAnalog;
+                
+                if (isAnalog) {
+                    digitalClock.style.cssText = 'display: none !important;';
+                    analogClock.style.display = 'block';
+                    toggleButton.style.cssText = 'box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2);';
+                } else {
+                    digitalClock.style.cssText = 'display: block !important;';
+                    analogClock.style.display = 'none';
+                    toggleButton.style.cssText = '';
+                }
+            });
+            
+            // Set initial state
+            digitalClock.style.cssText = 'display: block !important;';
+            analogClock.style.display = 'none';
+            toggleButton.style.cssText = '';
+        }
+
+        // Setup speed control if it exists
+        const speedSlider = document.getElementById('speedSlider');
+        if (speedSlider) {
+            speedSlider.addEventListener('input', (e) => {
+                const now = Date.now();
+                const elapsed = now - this.startTime;
+                const currentProgress = (elapsed % this.cycleDuration) / this.cycleDuration;
+                
+                const newDuration = parseFloat(e.target.value);
+                this.cycleDuration = newDuration;
+                this.startTime = now - (currentProgress * this.cycleDuration);
+                
+                const speedDisplay = document.getElementById('speedDisplay');
+                if (speedDisplay) {
+                    const minutes = Math.floor(newDuration / 60000);
+                    const seconds = Math.floor((newDuration % 60000) / 1000);
+                    speedDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                }
+            });
         }
     }
 
@@ -357,157 +430,6 @@ class CityScene {
         }
     }
 
-    setupEventListeners() {
-        // Single cleanup handler for page unload
-        window.addEventListener('beforeunload', () => {
-            this.cleanup();
-        });
-        
-        // Page visibility change handler
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                this.pauseAnimation();
-            } else {
-                this.resumeAnimation();
-            }
-        });
-
-        // Setup play/pause button
-        const playPauseButton = document.getElementById('playPause');
-        if (playPauseButton) {
-            playPauseButton.addEventListener('click', () => {
-                if (this.isPlaying) {
-                    this.pauseAnimation();
-                    playPauseButton.textContent = 'Play';
-                } else {
-                    this.resumeAnimation();
-                    playPauseButton.textContent = 'Pause';
-                }
-            });
-        }
-
-        // Setup clock toggle
-        const toggleButton = document.getElementById('toggleClock');
-        const digitalClock = document.getElementById('digital-clock');
-        const analogClock = document.getElementById('analog-clock');
-        
-        if (toggleButton && digitalClock && analogClock) {
-            let isAnalog = false;
-            
-            toggleButton.addEventListener('click', () => {
-                isAnalog = !isAnalog;
-                
-                if (isAnalog) {
-                    digitalClock.style.cssText = 'display: none !important;';
-                    analogClock.style.display = 'block';
-                    toggleButton.style.cssText = 'box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2);';
-                } else {
-                    digitalClock.style.cssText = 'display: block !important;';
-                    analogClock.style.display = 'none';
-                    toggleButton.style.cssText = '';
-                }
-            });
-            
-            // Set initial state
-            digitalClock.style.cssText = 'display: block !important;';
-            analogClock.style.display = 'none';
-            toggleButton.style.cssText = '';
-        }
-
-        // Setup speed control if it exists
-        const speedSlider = document.getElementById('speedSlider');
-        if (speedSlider) {
-            speedSlider.addEventListener('input', (e) => {
-                const now = Date.now();
-                const elapsed = now - this.startTime;
-                const currentProgress = (elapsed % this.cycleDuration) / this.cycleDuration;
-                
-                const newDuration = parseFloat(e.target.value);
-                this.cycleDuration = newDuration;
-                this.startTime = now - (currentProgress * this.cycleDuration);
-                
-                const speedDisplay = document.getElementById('speedDisplay');
-                if (speedDisplay) {
-                    const minutes = Math.floor(newDuration / 60000);
-                    const seconds = Math.floor((newDuration % 60000) / 1000);
-                    speedDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-                }
-            });
-        }
-    }
-
-    saveState() {
-        const state = {
-            startTime: this.startTime,
-            isDark: this.isDark,
-            lastPhase: this.lastPhase
-        };
-        sessionStorage.setItem('citySceneState', JSON.stringify(state));
-    }
-
-    pauseAnimation() {
-        if (!this.isPlaying) return;
-        
-        this.isPlaying = false;
-        if (this.animationFrameId) {
-            cancelAnimationFrame(this.animationFrameId);
-            this.animationFrameId = null;
-        }
-        
-        // Pause UFO animation
-        const ufo = document.querySelector('.ufo');
-        if (ufo) {
-            ufo.style.animationPlayState = 'paused';
-        }
-        
-        // Store the exact moment we paused
-        this.pausedAt = Date.now();
-    }
-
-    resumeAnimation() {
-        if (this.isPlaying) return;
-        
-        // Resume UFO animation
-        const ufo = document.querySelector('.ufo');
-        if (ufo) {
-            ufo.style.animationPlayState = 'running';
-        }
-        
-        // Adjust start time to account for pause duration
-        if (this.pausedAt) {
-            const pauseDuration = Date.now() - this.pausedAt;
-            this.startTime += pauseDuration;
-            this.pausedAt = null;
-        }
-        
-        this.isPlaying = true;
-        this.animationFrameId = requestAnimationFrame((t) => this.animateScene(t));
-    }
-
-    animateScene(timestamp) {
-        if (!this.isPlaying || this.isCleaningUp) return;
-
-        try {
-            const elapsed = Date.now() - this.startTime;
-            const timeOfDay = (elapsed % this.cycleDuration) / this.cycleDuration;
-            
-            // Update all components
-            this.updatePhases(timeOfDay);
-            this.updateCelestialBodies(timeOfDay);
-            this.updateClock(timeOfDay);
-            this.updateClouds();
-
-            // Request next frame if still playing
-            if (this.isPlaying && !this.isCleaningUp) {
-                this.animationFrameId = requestAnimationFrame((t) => this.animateScene(t));
-                sessionStorage.setItem('animationFrameId', this.animationFrameId.toString());
-            }
-        } catch (error) {
-            console.error('Animation error:', error);
-            this.cleanup();
-        }
-    }
-
     startAnimation() {
         if (this.isPlaying) return;
         
@@ -522,7 +444,7 @@ class CityScene {
         this.updateClock(timeOfDay);
         this.updateClouds();
         
-        // Start animation loop and store ID
+        // Start animation loop
         const animate = (timestamp) => {
             if (!this.isPlaying) return;
             
@@ -534,11 +456,10 @@ class CityScene {
             this.updateClock(timeOfDay);
             this.updateClouds();
             
-            // Store frame ID globally for cleanup
-            window.lastAnimationFrame = requestAnimationFrame(animate);
+            requestAnimationFrame(animate);
         };
         
-        window.lastAnimationFrame = requestAnimationFrame(animate);
+        requestAnimationFrame(animate);
     }
 
     updateCelestialBodies(timeOfDay) {
@@ -732,37 +653,135 @@ class CityScene {
         };
     }
 
+    pauseAnimation() {
+        if (!this.isPlaying) return;
+        
+        this.isPlaying = false;
+        if (this.animationFrameId) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+        }
+        
+        // Pause UFO animation
+        const ufo = document.querySelector('.ufo');
+        if (ufo) {
+            ufo.style.animationPlayState = 'paused';
+        }
+        
+        // Store the exact moment we paused
+        this.pausedAt = Date.now();
+    }
+
+    resumeAnimation() {
+        if (this.isPlaying) return;
+        
+        // Resume UFO animation
+        const ufo = document.querySelector('.ufo');
+        if (ufo) {
+            ufo.style.animationPlayState = 'running';
+        }
+        
+        // Adjust start time to account for pause duration
+        if (this.pausedAt) {
+            const pauseDuration = Date.now() - this.pausedAt;
+            this.startTime += pauseDuration;
+            this.pausedAt = null;
+        }
+        
+        this.isPlaying = true;
+        this.animationFrameId = requestAnimationFrame((t) => this.animateScene(t));
+    }
+
+    animateScene(timestamp) {
+        if (!this.isPlaying) return;
+
+        try {
+            const elapsed = Date.now() - this.startTime;
+            const timeOfDay = (elapsed % this.cycleDuration) / this.cycleDuration;
+            
+            // Update all components
+            this.updatePhases(timeOfDay);
+            this.updateCelestialBodies(timeOfDay);
+            this.updateClock(timeOfDay);
+            this.updateClouds();
+
+            // Request next frame if still playing
+            if (this.isPlaying) {
+                this.animationFrameId = requestAnimationFrame((t) => this.animateScene(t));
+            }
+        } catch (error) {
+            console.error('Animation error:', error);
+            this.cleanup();
+        }
+    }
+
     cleanup() {
+        console.log('Cleaning up scene...');
+        
         // Stop animation
         this.isPlaying = false;
-        if (window.lastAnimationFrame) {
-            cancelAnimationFrame(window.lastAnimationFrame);
-            window.lastAnimationFrame = null;
+        if (this.animationFrameId) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
         }
 
-        // Clear any stored state
-        sessionStorage.clear();
+        // Reset all animations
+        const animatedElements = document.querySelectorAll('.animated, .sky-layer');
+        animatedElements.forEach(element => {
+            if (element) {
+                element.style.animation = 'none';
+                element.style.transition = 'none';
+            }
+        });
 
-        // Reset visual elements
-        if (this.sun) this.sun.style.display = 'none';
-        if (this.moon) this.moon.style.display = 'none';
-        if (this.starContainer) this.starContainer.style.opacity = '0';
+        // Reset sun and moon
+        if (this.sun) {
+            this.sun.style.display = 'none';
+            this.sun.style.transform = '';
+            this.sun.style.animation = 'none';
+        }
+        if (this.moon) {
+            this.moon.style.display = 'none';
+            this.moon.style.transform = '';
+            this.moon.style.animation = 'none';
+        }
+        if (this.starContainer) {
+            this.starContainer.style.opacity = '0';
+        }
 
         // Reset sky layers
         const allLayers = document.querySelectorAll('.sky-layer');
         allLayers.forEach(layer => {
-            layer.classList.add('hidden');
-            layer.style.opacity = '';
+            if (layer) {
+                layer.classList.add('hidden');
+                layer.style.opacity = '';
+                layer.style.animation = 'none';
+            }
         });
 
         // Clear clouds
-        if (this.clouds) {
-            this.clouds.forEach(cloud => cloud && cloud.remove());
+        if (this.clouds && Array.isArray(this.clouds)) {
+            this.clouds.forEach(cloud => {
+                if (cloud && cloud.parentElement) {
+                    cloud.parentElement.removeChild(cloud);
+                }
+            });
             this.clouds = [];
         }
 
+        // Reset UFO
+        const ufo = document.querySelector('.ufo');
+        if (ufo) {
+            ufo.style.animation = 'none';
+            ufo.style.display = 'none';
+        }
+
+        // Force reflow to apply all animation removals
+        document.body.offsetHeight;
+        
         // Reset state
         this.lastPhase = null;
-        window.citySceneInstance = null;
+        
+        console.log('Cleanup complete');
     }
 }
