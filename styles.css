@@ -64,8 +64,8 @@ body {
 #street{
     display:block;
     position:absolute;
-    bottom:-10px;
-    height: 12px;
+    bottom:0;
+    height: 8px;
     background:#0e0e0f;
     width:100%;
     z-index: 100;
@@ -721,6 +721,7 @@ button:hover {
     width: 200px;
     height: 10px;
     -webkit-appearance: none;
+    appearance: none;
     background: rgba(255, 255, 255, 0.2);
     border-radius: 5px;
     outline: none;
