@@ -1,5 +1,11 @@
+// Configuration
+const CYCLE_DURATION = 180000; // Milliseconds for one 24-hour cycle (24 seconds)
+
 class CityScene {
     constructor() {
+        // Configuration
+        this.cycleDuration = CYCLE_DURATION; // Milliseconds for one 24-hour cycle
+        
         this.isPlaying = false;
         this.startTime = Date.now();
         this.isDark = false;
@@ -41,6 +47,11 @@ class CityScene {
             this.digitalClock.classList.toggle('active');
             this.analogClock.classList.toggle('active');
         });
+
+        // Setup speed control
+        this.speedSlider = document.getElementById('speedSlider');
+        this.speedDisplay = document.getElementById('speedDisplay');
+        this.setupSpeedControl();
     }
 
     setupScene() {
@@ -102,7 +113,7 @@ class CityScene {
             const floorHeight = 40; // Height of each floor including gap
             const floors = Math.floor((height - 20) / floorHeight); // Account for padding
             const windowWidth = 20; // Width of each window including gap
-            const windowsPerFloor = Math.floor((width - 20) / windowWidth); // Account for padding
+            const windowsPerFloor = Math.floor((width - 25) / windowWidth); // Account for padding
             
             for (let floor = 0; floor < floors; floor++) {
                 const floorDiv = document.createElement('div');
@@ -297,6 +308,26 @@ class CityScene {
         }
     }
 
+    setupSpeedControl() {
+        this.speedSlider.addEventListener('input', (e) => {
+            const newDuration = parseInt(e.target.value);
+            // Store current progress before changing duration
+            const now = Date.now();
+            const elapsed = now - this.startTime;
+            const currentProgress = (elapsed % this.cycleDuration) / this.cycleDuration;
+            
+            // Update duration
+            this.cycleDuration = newDuration;
+            
+            // Adjust start time to maintain current position in cycle
+            this.startTime = now - (currentProgress * this.cycleDuration);
+            
+            // Update display
+            const minutes = (newDuration / 1000 / 60).toFixed(1);
+            this.speedDisplay.textContent = `Cycle: ${minutes} minutes`;
+        });
+    }
+
     calculateCelestialPosition(progress) {
         // Map progress (0-1) to x position across viewport width (-10 to 110)
         const x = progress * 120 - 10; // Start off-screen left, end off-screen right
@@ -320,8 +351,7 @@ class CityScene {
 
         const now = Date.now();
         const elapsed = now - this.startTime;
-        const cycleLength = 24000; // 24 seconds for a full day
-        const timeOfDay = (elapsed % cycleLength) / cycleLength;
+        const timeOfDay = (elapsed % this.cycleDuration) / this.cycleDuration;
 
         // Convert timeOfDay to hours for easier calculations
         const virtualHours = timeOfDay * 24;
@@ -504,7 +534,7 @@ class CityScene {
         const isDayTime = currentHour >= 6 && currentHour < 18;
         
         if (!isDayTime) {
-            this.startTime = Date.now() - this.dayDuration;
+            this.startTime = Date.now() - this.cycleDuration;
             this.isDark = true;
             this.sceneContainer.classList.remove('scene-day');
             this.sceneContainer.classList.add('scene-night');
