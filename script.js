@@ -96,7 +96,7 @@ class CityScene {
         const existingBuildings = this.cityscape.querySelectorAll('.building');
         existingBuildings.forEach(building => building.remove());
 
-        const buildingCount = Math.floor(Math.random() * 6) + 8; // 8-12 buildings
+        const buildingCount = Math.floor(Math.random() * 9) + 8; // 9-17 buildings
         const containerWidth = window.innerWidth;
         const minSpacing = 100; // Minimum space between buildings
         
@@ -170,7 +170,7 @@ class CityScene {
         const roofColors = ['#212121', '#795548', '#BDBDBD', '#2E7D32', '#C62828', '#4527A0', '#1565C0'];
         const doorColors = ['#D32F2F', '#FBC02D', '#6A1B9A', '#1565C0', '#4E342E'];
 
-        const houseCount = Math.floor(Math.random() * 6) + 3; // 3-8 houses
+        const houseCount = Math.floor(Math.random() * 6) + 6; // 6-11 houses
         const containerWidth = window.innerWidth;
         const minSpacing = 130; // Minimum space between houses
         
