@@ -4,20 +4,44 @@ const DEBUG = true; // Enable/disable debug logging
 
 // Helper for debug logging
 function log(message) {
-    if (DEBUG) console.log(`[${new Date().toLocaleTimeString()}] ${message}`);
+    if (DEBUG) {
+        console.log(`[CityLights] ${message}`);
+    }
 }
 
 // Track active instance
 let activeScene = null;
-let restartInProgress = false;
 
-// Initialize scene only after DOM is fully loaded
+// Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
-    log('DOM fully loaded, initializing scene');
-    if (!activeScene) {
-        activeScene = new CityScene();
-    }
+    log('Document loaded, initializing scene');
+    initScene();
 });
+
+// Core initialization function
+function initScene() {
+    log('Initializing new scene');
+    
+    // Clean up any existing scene
+    if (activeScene) {
+        log('Cleaning up existing scene');
+        try {
+            activeScene.cleanup();
+        } catch (e) {
+            log(`Error cleaning up: ${e.message}`);
+        }
+        activeScene = null;
+    }
+    
+    // Create new scene
+    try {
+        activeScene = new CityScene();
+        log('Scene initialized successfully');
+    } catch (e) {
+        log(`Error creating scene: ${e.message}`);
+        console.error(e);
+    }
+}
 
 class CityScene {
     constructor() {
@@ -44,10 +68,32 @@ class CityScene {
         this.setupStars();
         this.setupClouds();
         
-        // Start animation
+        // Start animation with forced reset to beginning of cycle
         log('Starting animation');
-        this.startAnimation();
+        this.resetAnimation();
         log('CityScene constructor completed');
+    }
+
+    // New method to reset animation to beginning of cycle
+    resetAnimation() {
+        log('Resetting animation to beginning of cycle');
+        this.startTime = Date.now();
+        this.isPlaying = true;
+        
+        // Force update to start position (timeOfDay = 0 means midnight/start of cycle)
+        // This is 12am/0:00, which should be night time
+        const timeOfDay = 0;
+        
+        // No need to force visibility anymore - updateCelestialBodies will show/hide based on time
+        
+        // Apply immediate updates with the reset time
+        this.updatePhases(timeOfDay);
+        this.updateCelestialBodies(timeOfDay);
+        this.updateClock(timeOfDay);
+        this.updateClouds();
+        
+        // Start animation loop
+        this.animate();
     }
 
     // Setup all event listeners for the scene
@@ -63,66 +109,6 @@ class CityScene {
                 this.resumeAnimation();
             }
         });
-
-        // Setup restart button
-        const restartButton = document.getElementById('restart');
-        if (restartButton) {
-            log('Adding restart button event listener');
-            restartButton.addEventListener('click', () => {
-                log('Restart button clicked');
-                
-                // Prevent multiple restarts
-                if (restartInProgress) {
-                    log('Restart already in progress, ignoring click');
-                    return;
-                }
-                
-                // Disable button during restart
-                restartInProgress = true;
-                restartButton.disabled = true;
-                restartButton.style.opacity = '0.5';
-                
-                log('Beginning restart process');
-                try {
-                    // Stop current scene
-                    log('Cleaning up current scene');
-                    this.cleanup();
-                    
-                    log('Setting timeout for new scene creation');
-                    setTimeout(() => {
-                        try {
-                            log('Creating new scene instance');
-                            // Create new scene
-                            activeScene = new CityScene();
-                            
-                            // Reset button
-                            log('Resetting restart button');
-                            restartButton.disabled = false;
-                            restartButton.style.opacity = '1';
-                            restartInProgress = false;
-                        } catch (innerError) {
-                            log(`Error during scene creation: ${innerError.message}`);
-                            console.error('Error creating new scene:', innerError);
-                            
-                            // Reset button on error
-                            restartButton.disabled = false;
-                            restartButton.style.opacity = '1';
-                            restartInProgress = false;
-                        }
-                    }, 100);
-                } catch (error) {
-                    log(`Error during restart: ${error.message}`);
-                    console.error('Error during restart:', error);
-                    
-                    // Reset button on error
-                    restartButton.disabled = false;
-                    restartButton.style.opacity = '1';
-                    restartInProgress = false;
-                }
-            });
-        } else {
-            log('WARNING: Restart button not found in DOM');
-        }
 
         // Setup play/pause button
         const playPauseButton = document.getElementById('playPause');
@@ -200,78 +186,25 @@ class CityScene {
     }
 
     initializeElements() {
-        log('Initializing DOM elements');
+        log('Initializing element references');
         
-        // Get references to DOM elements
+        // Scene container
         this.sceneContainer = document.getElementById('scene-container');
-        if (!this.sceneContainer) {
-            log('ERROR: Scene container not found!');
-            throw new Error('Scene container not found');
-        }
-
-        log('Getting sky element reference');
-        this.sky = document.getElementById('sky');
-        if (!this.sky) {
-            log('Sky element not found, creating it');
-            this.sky = document.createElement('div');
-            this.sky.id = 'sky';
-            this.sceneContainer.appendChild(this.sky);
-        }
         
-        log('Getting sun element reference');
+        // Store viewport dimensions for calculations
+        this.viewportWidth = window.innerWidth;
+        this.viewportHeight = window.innerHeight;
+        
+        // Scene-specific elements
         this.sun = document.getElementById('sun');
-        if (!this.sun) {
-            log('Sun element not found, will be created later');
-        }
-        
-        log('Getting moon element reference');
         this.moon = document.getElementById('moon');
-        if (!this.moon) {
-            log('Moon element not found, will be created later');
-        }
-        
-        log('Getting star container reference');
         this.starContainer = document.getElementById('stars');
-        if (!this.starContainer) {
-            log('Star container not found, creating it');
-            this.starContainer = document.createElement('div');
-            this.starContainer.id = 'stars';
-            this.sceneContainer.appendChild(this.starContainer);
-        }
+        this.clouds = [];
+        this.cloudContainer = document.getElementById('clouds');
         
-        log('Getting cityscape element reference');
-        this.cityscape = document.getElementById('cityscape');
-        if (!this.cityscape) {
-            log('Cityscape element not found, will be created later');
-        }
-        
-        // Get building and window references if they exist
-        this.buildings = document.querySelectorAll('.building');
-        this.windows = document.querySelectorAll('.window');
-        
-        // Get clock elements
-        log('Getting clock element references');
+        // Clock elements
         this.digitalClock = document.getElementById('digital-clock');
-        if (!this.digitalClock) {
-            log('WARNING: Digital clock not found');
-        }
-        
         this.analogClock = document.getElementById('analog-clock');
-        if (!this.analogClock) {
-            log('WARNING: Analog clock not found');
-        } else {
-            this.hourHand = this.analogClock.querySelector('.hour-hand');
-            this.minuteHand = this.analogClock.querySelector('.minute-hand');
-            
-            if (!this.hourHand || !this.minuteHand) {
-                log('WARNING: Clock hands not found');
-            }
-        }
-        
-        // Speed control elements
-        log('Getting speed control references');
-        this.speedSlider = document.getElementById('speedSlider');
-        this.speedDisplay = document.getElementById('speedDisplay');
         
         log('Element initialization complete');
     }
@@ -494,6 +427,8 @@ class CityScene {
         this.sun.style.backgroundColor = '#ffdd00';
         this.sun.style.boxShadow = '0 0 30px #ffdd00, 0 0 60px #ffbb00';
         this.sun.style.zIndex = '2';
+        this.sun.style.transition = 'transform 10s linear, opacity 10s ease-in-out';
+        this.sun.style.opacity = '0';
         
         this.moon.style.display = 'block';
         this.moon.style.position = 'absolute';
@@ -503,10 +438,13 @@ class CityScene {
         this.moon.style.backgroundColor = '#ddd';
         this.moon.style.boxShadow = '0 0 20px #ddd';
         this.moon.style.zIndex = '2';
+        this.moon.style.transition = 'transform 10s linear, opacity 10s ease-in-out';
+        this.moon.style.opacity = '0';
         
         // Set initial positions for sun and moon
-        this.sun.style.transform = `translate(-150vw, ${window.innerHeight * 0.7}px)`;
-        this.moon.style.transform = `translate(-150vw, ${window.innerHeight * 0.7}px)`;
+        // Start 20vw left of viewport
+        this.sun.style.transform = 'translate(-20vw, 100vh)';
+        this.moon.style.transform = 'translate(-20vw, 100vh)';
         
         log('Celestial bodies setup complete');
     }
@@ -557,45 +495,109 @@ class CityScene {
             return;
         }
         
-        // Make sure they're visible
-        this.sun.style.display = 'block';
-        this.moon.style.display = 'block';
+        // Calculate which bodies should be visible
+        // Sun: visible from dawn (5) through dusk (19)
+        // Moon: visible from dusk (19) through dawn (7)
+        const hourOfDay = timeOfDay * 24;
         
-        // Calculate positions
-        const { x: sunX, y: sunY } = this.calculateCelestialPosition(timeOfDay);
-        const { x: moonX, y: moonY } = this.calculateCelestialPosition((timeOfDay + 0.5) % 1);
+        // Calculate positions - align with phases in updatePhases method
+        // Sun rises at dawn (5am), peaks at noon, sets at dusk (7pm)
+        // Moon rises at dusk (7pm), peaks at midnight, sets just before dawn (5am)
+        let sunProgress, moonProgress;
         
-        // Update positions
-        this.sun.style.transform = `translate(${sunX}vw, ${sunY}px)`;
-        this.moon.style.transform = `translate(${moonX}vw, ${moonY}px)`;
+        // Constants for position and fading calculations
+        const startVw = -20;
+        const endVw = 120;
+        const fadeStartVw = 95; // Start fading when 5vw from right edge
         
-        // Calculate sun brightness based on height (higher = brighter)
-        const maxHeight = window.innerHeight * 0.8;
-        const minY = window.innerHeight - maxHeight;
-        const sunHeight = Math.min(Math.max(sunY, minY), window.innerHeight);
-        const sunBrightness = 1 - Math.abs((sunHeight - minY) / maxHeight - 0.5) * 2;
+        // Calculate the progress value that corresponds to fadeStartVw
+        const fadeStartProgress = (fadeStartVw - startVw) / (endVw - startVw);
         
-        // Update sun appearance
-        const baseSunColor = [255, 221, 0];
-        const sunsetColor = [255, 140, 0];
-        const sunColor = this.interpolateColor(
-            sunsetColor,
-            baseSunColor,
-            sunBrightness
-        );
+        // Sun opacity calculation
+        let sunOpacity = 0;
         
-        // Apply color and glow
-        const rgbSunColor = `rgb(${sunColor[0]}, ${sunColor[1]}, ${sunColor[2]})`;
-        this.sun.style.backgroundColor = rgbSunColor;
-        this.sun.style.boxShadow = `0 0 ${30 * sunBrightness}px ${rgbSunColor}, 0 0 ${60 * sunBrightness}px rgb(255, 187, 0)`;
-        
-        // Update stars based on sun position
-        const starOpacity = timeOfDay > 0.75 || timeOfDay < 0.25 ? 1 : 0;
-        this.starContainer.style.opacity = starOpacity.toString();
-        
-        if (Math.random() < 0.01) {
-            log(`Sun position: (${sunX.toFixed(1)}, ${sunY.toFixed(1)}), Moon position: (${moonX.toFixed(1)}, ${moonY.toFixed(1)})`);
+        // Calculate sun visibility and progress
+        if (hourOfDay >= 5 && hourOfDay <= 19) {
+            // Sun is visible during day - map 5am->7pm to 0->1 progress
+            sunProgress = (hourOfDay - 5) / 14;
+            
+            // Only fade when setting and within 5vw of the right edge
+            if (sunProgress >= fadeStartProgress) {
+                // Map fadeStartProgress->1 to 1->0 opacity
+                sunOpacity = 1 - ((sunProgress - fadeStartProgress) / (1 - fadeStartProgress));
+            } else {
+                // Full opacity during the rest of the day
+                sunOpacity = 1;
+            }
         }
+        
+        // Moon opacity calculation
+        let moonOpacity = 0;
+        
+        // Calculate moon visibility and progress
+        if (hourOfDay >= 17 || hourOfDay <= 7) {
+            // Moon is visible during night - map 5pm->7am to 0->1 progress
+            moonProgress = hourOfDay >= 17 ? 
+                (hourOfDay - 17) / 14 : // 5pm to midnight
+                ((hourOfDay + 7) / 14);  // midnight to 7am
+            
+            // Only fade when setting and within 5vw of the right edge
+            if (moonProgress >= fadeStartProgress) {
+                // Map fadeStartProgress->1 to 1->0 opacity
+                moonOpacity = 1 - ((moonProgress - fadeStartProgress) / (1 - fadeStartProgress));
+            } else {
+                // Full opacity during the rest of the night
+                moonOpacity = 1;
+            }
+        }
+        
+        // Update positions and opacity based on calculated progress
+        if (sunProgress !== undefined) {
+            const { x: sunX, y: sunY } = this.calculateCelestialPosition(sunProgress, 'sun');
+            this.sun.style.transform = `translate(${sunX}vw, ${sunY}px)`;
+            this.sun.style.opacity = sunOpacity.toFixed(2);
+            
+            // Only update sun appearance if visible
+            if (sunOpacity > 0) {
+                // Calculate sun brightness based on height
+                const brightness = Math.min(1, 1 - (sunY / this.viewportHeight));
+                
+                // Update sun appearance
+                const baseSunColor = [255, 221, 0];
+                const sunsetColor = [255, 140, 0];
+                const sunColor = this.interpolateColor(
+                    sunsetColor,
+                    baseSunColor,
+                    brightness
+                );
+                
+                // Apply color and glow
+                const rgbSunColor = `rgb(${sunColor[0]}, ${sunColor[1]}, ${sunColor[2]})`;
+                this.sun.style.backgroundColor = rgbSunColor;
+                this.sun.style.boxShadow = `0 0 ${30 * brightness}px ${rgbSunColor}, 0 0 ${60 * brightness}px rgb(255, 187, 0)`;
+            }
+        }
+        
+        if (moonProgress !== undefined) {
+            const { x: moonX, y: moonY } = this.calculateCelestialPosition(moonProgress, 'moon');
+            this.moon.style.transform = `translate(${moonX}vw, ${moonY}px)`;
+            this.moon.style.opacity = moonOpacity.toFixed(2);
+        }
+        
+        // Update stars based on time of day (stars fade in at dusk and fade out at dawn)
+        let starOpacity = 0;
+        if (hourOfDay >= 19 || hourOfDay < 5) {
+            // Night: full opacity
+            starOpacity = 1;
+        } else if (hourOfDay >= 5 && hourOfDay < 7) {
+            // Dawn: fade out (7-5)/2 = 1 -> 0
+            starOpacity = 1 - ((hourOfDay - 5) / 2);
+        } else if (hourOfDay >= 17 && hourOfDay < 19) {
+            // Dusk: fade in (19-17)/2 = 0 -> 1
+            starOpacity = (hourOfDay - 17) / 2;
+        }
+        
+        this.starContainer.style.opacity = starOpacity.toString();
     }
 
     updatePhases(timeOfDay) {
@@ -603,7 +605,7 @@ class CityScene {
         let currentPhase;
 
         // Determine current phase
-        if (currentTime >= 19 && currentTime < 20) {
+        if (currentTime >= 18 && currentTime < 20) {
             currentPhase = 'dusk';
         } else if (currentTime >= 20 || currentTime < 5) {
             currentPhase = 'night';
@@ -613,17 +615,46 @@ class CityScene {
             currentPhase = 'day';
         }
 
-        // Only update DOM if phase changed and elements exist
+        // Only update DOM if phase changed
         if (this.lastPhase !== currentPhase) {
             const allLayers = document.querySelectorAll('.sky-layer');
             if (allLayers.length > 0) {
+                if (this.lastPhase) {
+                    log(`Phase transition: ${this.lastPhase} -> ${currentPhase}`);
+                }
+                
+                // First, mark the new phase layer for display
                 allLayers.forEach(layer => {
-                    if (currentPhase === 'dusk' && layer.classList.contains('night')) {
-                        return;
+                    if (layer.classList.contains(currentPhase)) {
+                        layer.classList.remove('hidden');
+                        // Set opacity to 0 initially for smooth fade-in
+                        layer.style.opacity = '0';
+                        
+                        // Force reflow to ensure transition works
+                        void layer.offsetWidth;
+                        
+                        // Fade in the new layer
+                        setTimeout(() => {
+                            layer.style.opacity = '1';
+                        }, 10);
                     }
-                    const shouldBeVisible = layer.classList.contains(currentPhase);
-                    layer.classList.toggle('hidden', !shouldBeVisible);
                 });
+                
+                // Handle previous phase layer - keep visible but fade out
+                if (this.lastPhase) {
+                    const oldLayers = document.querySelectorAll(`.sky-layer.${this.lastPhase}`);
+                    oldLayers.forEach(layer => {
+                        // Start fade out
+                        layer.style.opacity = '0';
+                        
+                        // Set a timer to hide it completely after fade
+                        setTimeout(() => {
+                            if (layer.style.opacity === '0') {
+                                layer.classList.add('hidden');
+                            }
+                        }, 10000); // 10 seconds matching CSS transition time
+                    });
+                }
                 
                 this.lastPhase = currentPhase;
             }
@@ -640,26 +671,49 @@ class CityScene {
             }
         }
 
-        // Handle dusk transition
+        // Handle specific transition cases
+        
+        // Smooth transitions for dusk (6pm-8pm)
         if (currentPhase === 'dusk') {
             const nightLayer = document.querySelector('.sky-layer.night');
             if (nightLayer) {
-                const duskProgress = (currentTime - 19);
-                nightLayer.style.opacity = duskProgress.toFixed(2);
+                // Dusk is from 18-20, map to 0-1 for opacity
+                const duskProgress = (currentTime - 18) / 2;
                 nightLayer.classList.remove('hidden');
+                nightLayer.style.opacity = duskProgress.toFixed(2);
+            }
+        }
+        
+        // Smooth transitions for dawn (5am-7am)
+        if (currentPhase === 'dawn') {
+            const dayLayer = document.querySelector('.sky-layer.day');
+            if (dayLayer) {
+                // Dawn is from 5-7, map to 0-1 for day layer opacity
+                const dawnProgress = (currentTime - 5) / 2;
+                dayLayer.classList.remove('hidden');
+                dayLayer.style.opacity = dawnProgress.toFixed(2);
+            }
+            
+            // Fade out night layer during dawn
+            const nightLayer = document.querySelector('.sky-layer.night');
+            if (nightLayer) {
+                nightLayer.classList.remove('hidden');
+                nightLayer.style.opacity = (1 - ((currentTime - 5) / 2)).toFixed(2);
             }
         }
 
         // Handle lamp light transitions
-        const lampDown = document.getElementById('lamp-down');
-        if (lampDown) {
-            if (currentPhase === 'night' || currentPhase === 'dusk') {
-                lampDown.classList.add('night');
-                lampDown.classList.remove('day');
-            } else {
-                lampDown.classList.add('day');
-                lampDown.classList.remove('night');
-            }
+        const lampLights = document.querySelectorAll('.lamp-light');
+        if (lampLights.length > 0) {
+            lampLights.forEach(light => {
+                if (currentPhase === 'night' || currentPhase === 'dusk') {
+                    light.classList.add('night');
+                    light.classList.remove('day');
+                } else {
+                    light.classList.add('day');
+                    light.classList.remove('night');
+                }
+            });
         }
     }
 
@@ -715,29 +769,47 @@ class CityScene {
         }
     }
 
-    calculateCelestialPosition(progress) {
-        log(`Calculating celestial position for progress: ${progress.toFixed(3)}`);
+    calculateCelestialPosition(progress, body) {
+        // For performance, only log occasionally
+        if (Math.random() < 0.01) {
+            log(`Calculating celestial position for progress: ${progress.toFixed(3)}`);
+        }
         
-        // Normalize progress to be between 0 and 1
-        progress = (progress + 1) % 1;
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
         
-        // Calculate horizontal position (percentage of viewport width)
-        const horizontalRange = 120; // -10% to 110% of viewport width
-        const x = (progress * horizontalRange) - 10; // Start at -10% viewport width
+        // Calculate horizontal position - using vw units
+        // Start: -20vw, End: 120vw (100vw + 20vw)
+        const startVw = -20;
+        const endVw = 120;
+        const xInVw = startVw + (progress * (endVw - startVw));
         
-        // Calculate vertical position (pixels)
-        const windowHeight = window.innerHeight;
-        const minHeight = windowHeight * 0.1; // Highest point (10% down from top)
-        const maxHeight = windowHeight * 0.7; // Lowest point (70% down from top)
-        const heightRange = maxHeight - minHeight;
+        // Calculate vertical position using a parabola
+        // Start and end at bottom of screen, peak at 5vh from top at center
         
-        // Create a parabolic path that starts and ends at maxHeight
-        // and reaches minHeight at progress = 0.5
-        const verticalProgress = 1 - Math.sin(progress * Math.PI);
-        const y = minHeight + (verticalProgress * heightRange / 2);
+        // Normalize x from 0-1 to -1 to 1 (center at 0)
+        const normalizedX = (progress * 2) - 1;
         
-        log(`Calculated position: x=${x.toFixed(1)}vw, y=${y.toFixed(1)}px`);
-        return { x, y };
+        // Using quadratic function: y = a*x^2 + b
+        // When x = -1 or x = 1, y should be near bottom of screen
+        // When x = 0, y should be 5vh from top
+        
+        const bottomY = viewportHeight - 10; // 10px from bottom
+        const topY = viewportHeight * 0.05; // 5vh from top
+        
+        // Solve for 'a': a = (bottom - top) / 1^2 = bottom - top
+        const a = bottomY - topY;
+        
+        // Calculate parabola: y = a*x^2 + top
+        // This will give us a parabola that passes through:
+        // (-1, bottom), (0, top), (1, bottom)
+        const y = (a * normalizedX * normalizedX) + topY;
+        
+        if (Math.random() < 0.01) {
+            log(`Calculated celestial position: x=${xInVw.toFixed(1)}vw, y=${y.toFixed(1)}px`);
+        }
+        
+        return { x: xInVw, y };
     }
 
     interpolateColor(color1, color2, factor) {
@@ -887,25 +959,20 @@ class CityScene {
             log('Resetting sun');
             this.sun.style.display = 'none';
             this.sun.style.transform = '';
-        } else {
-            log('Sun element not found for reset');
         }
         
         if (this.moon) {
             log('Resetting moon');
             this.moon.style.display = 'none';
             this.moon.style.transform = '';
-        } else {
-            log('Moon element not found for reset');
         }
         
+        // Reset star container
         if (this.starContainer) {
             log('Resetting star container');
             this.starContainer.style.opacity = '0';
-        } else {
-            log('Star container not found for reset');
         }
-
+        
         // Reset sky layers
         log('Resetting sky layers');
         const allLayers = document.querySelectorAll('.sky-layer');
@@ -956,8 +1023,10 @@ class CityScene {
             log(`Error during reflow: ${error.message}`);
         }
         
-        // Reset state
+        // Reset internal state
         this.lastPhase = null;
+        this.startTime = null;
+        this.pausedAt = null;
         
         log('Cleanup complete');
     }

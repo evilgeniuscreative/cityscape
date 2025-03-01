@@ -203,13 +203,13 @@ body {
     width: 100%;
     height: 100%;
     opacity: 1;
-    transition: opacity 1s ease;
+    transition: opacity 10s ease-in-out;
 }
 
 .sky-layer.hidden {
     opacity: 0;
     visibility: hidden;  
-    transition: opacity 1s ease, visibility 0s linear 1s;  
+    transition: opacity 10s ease-in-out, visibility 0s linear 10s;  
 }
 
 .sky-layer.night {
@@ -285,7 +285,7 @@ body {
     width: 100%;
     height: 100%;
     z-index: 1;
-    transition: opacity 1s ease;
+    transition: opacity 10s ease-in-out;
 }
 
 .ufo {
@@ -793,32 +793,17 @@ button:hover {
 }
 
 .controls button {
-    background: #f0f0f0;
-    border: 1px solid #ccc;
+    margin: 5px;
+    padding: 5px 10px;
     border-radius: 4px;
-    padding: 8px 16px;
+    border: 1px solid #aaa;
+    background: #eee;
     cursor: pointer;
+    font-size: 12px;
     outline: none;
     transition: all 0.2s ease-in-out;
 }
 
 .controls button:active {
     box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2);
-}
-
-#restart {
-    background: #ff6b6b;
-    color: white;
-    border-color: #ff5252;
-    transition: all 0.3s ease-in-out;
-}
-
-#restart:hover:not(:disabled) {
-    background: #ff5252;
-}
-
-#restart:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    background: #ff6b6b;
 }
