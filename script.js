@@ -147,20 +147,20 @@ class CityScene {
                 isAnalog = !isAnalog;
                 
                 if (isAnalog) {
-                    digitalClock.style.cssText = 'display: none !important;';
-                    analogClock.style.display = 'block';
-                    toggleButton.style.cssText = 'box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2);';
+                    digitalClock.classList.remove('active');
+                    analogClock.classList.add('active');
+                    toggleButton.classList.add('active');
                 } else {
-                    digitalClock.style.cssText = 'display: block !important;';
-                    analogClock.style.display = 'none';
-                    toggleButton.style.cssText = '';
+                    digitalClock.classList.add('active');
+                    analogClock.classList.remove('active');
+                    toggleButton.classList.remove('active');
                 }
             });
             
             // Set initial state
-            digitalClock.style.cssText = 'display: block !important;';
-            analogClock.style.display = 'none';
-            toggleButton.style.cssText = '';
+            digitalClock.classList.add('active');
+            analogClock.classList.remove('active');
+            toggleButton.classList.remove('active');
         }
 
         // Setup speed control if it exists
@@ -205,6 +205,18 @@ class CityScene {
         // Clock elements
         this.digitalClock = document.getElementById('digital-clock');
         this.analogClock = document.getElementById('analog-clock');
+        
+        // Initialize hour and minute hand references
+        if (this.analogClock) {
+            this.hourHand = this.analogClock.querySelector('.hour-hand');
+            this.minuteHand = this.analogClock.querySelector('.minute-hand');
+            
+            if (!this.hourHand || !this.minuteHand) {
+                log('ERROR: Hour or minute hand not found in analog clock');
+            } else {
+                log('Analog clock hands initialized successfully');
+            }
+        }
         
         log('Element initialization complete');
     }
@@ -741,6 +753,16 @@ class CityScene {
             // Minute hand makes one complete 360° rotation per hour
             const minuteAngle = minutes * 6; // 6 degrees per minute
             this.minuteHand.style.transform = `rotate(${minuteAngle}deg)`;
+            
+            // Log occasionally for debugging
+            if (Math.random() < 0.01) {
+                log(`Updating clock - Time: ${hours12}:${String(minutes).padStart(2, '0')} ${ampm}`);
+                log(`Hour hand angle: ${hourAngle}deg, Minute hand angle: ${minuteAngle}deg`);
+            }
+        } else if (Math.random() < 0.01) {
+            // Log if hands are missing, but only occasionally
+            log('WARNING: Hour or minute hand references missing in updateClock');
+            log(`hourHand exists: ${!!this.hourHand}, minuteHand exists: ${!!this.minuteHand}`);
         }
     }
 
