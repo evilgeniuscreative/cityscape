@@ -1,0 +1,8 @@
+// TODO : EventListener accumulation
+// TODO : Move any javascript to css that's possible
+// TODO : Add random timing and movement to the UFO
+// TODO : Correct sun, moon, and clouds z-index
+// TODO : Create random cloud color white to grey for weather. 
+// TODO : Fix streetlight timing
+// TODO : Set up window timing for on and off at night
+// TODO : Fix Pause and Clock display
