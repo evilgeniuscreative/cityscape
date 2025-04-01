@@ -1,380 +1,429 @@
 * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-    overflow: hidden;
+  overflow: hidden;
 }
 
 @keyframes sunset {
-    0% {
-        background-color: #87ceeb;  
-    }
-    33% {
-        background-color: #3535b2;
-    }
-    66% {
-        background-color: #171771;
-    }
-    100% {
-        background-color: #18182b;
-    }
+  0% {
+    background-color: #87ceeb;
+  }
+  33% {
+    background-color: #3535b2;
+  }
+  66% {
+    background-color: #171771;
+  }
+  100% {
+    background-color: #18182b;
+  }
 }
 
 @keyframes dawn {
-    0% {
-        background-color: #1a1a2e;
-    }
-    33% {
-        background-color: #171771;
-    }
-    66% {
-        background-color: #3535b2;
-    }
-    100% {
-        background-color: #87ceeb;  
-    }
+  0% {
+    background-color: #1a1a2e;
+  }
+  33% {
+    background-color: #171771;
+  }
+  66% {
+    background-color: #3535b2;
+  }
+  100% {
+    background-color: #87ceeb;
+  }
 }
 
 @keyframes twinkle {
-    0% { opacity: 0.8; }
-    50% { opacity: 0.3; }
-    100% { opacity: 0.8; }
+  0% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 0.8;
+  }
 }
 
 @keyframes float {
-    from {
-        transform: translateX(0);
-    }
-    to {
-        transform: translateX(-120vw);
-    }
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-120vw);
+  }
 }
 
 #scene-container {
-    background: #87CEEB;
-    height: 100vh;
-    position: relative;
-    transition: background 2s ease;
-    width: 100vw;
+  background: #87ceeb;
+  height: 100vh;
+  position: relative;
+  transition: background 2s ease;
+  width: 100vw;
 }
 
-#street{
-    display:block;
-    position:absolute;
-    bottom:0;
-    height: 8px;
-    background:#0e0e0f;
-    width:100%;
-    z-index: 100;
+#street {
+  display: block;
+  position: absolute;
+  bottom: 0;
+  height: 8px;
+  background: #0e0e0f;
+  width: 100%;
+  z-index: 100;
 }
 
 #clock-container {
-    position: absolute;
-    right: 20px;
-    top: 20px;
-    width: 160px;
-    z-index: 1000;
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  width: 160px;
+  z-index: 1000;
 }
 
 #digital-clock {
-    font-family: 'Digital-7', monospace;
-    font-size: 24px;
-    color: #ff0000;
-    background: #000000;
-    padding: 10px 15px;
-    border-radius: 5px;
-    text-align: center;
-    display: none;
-    width: 250px;
-    height: 50px;
-    position: absolute;
-    top: 45px;
-    z-index: 10;
+  font-family: "Digital-7", monospace;
+  font-size: 24px;
+  color: #ff0000;
+  background: #000000;
+  padding: 10px 15px;
+  border-radius: 5px;
+  text-align: center;
+  display: none;
+  width: 250px;
+  height: 50px;
+  position: absolute;
+  top: 45px;
+  z-index: 10;
 }
 
 #digital-clock.active {
-    display: block;
+  display: block;
 }
 
 #analog-clock {
-    background: rgba(255, 255, 255, 0.9);
-    width: 160px;
-    height: 160px;
-    border-radius: 50%;
-    position: absolute;
-    top:45px;
-    right:45px;
-    display: none;
-    z-index: 10;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.9);
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  position: absolute;
+  top: 45px;
+  right: 45px;
+  display: none;
+  z-index: 10;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
 }
 
 #analog-clock.active {
-    display: block;
+  display: block;
 }
 
 .clock-face {
-    height: 100%;
-    position: relative;
-    width: 100%;
+  height: 100%;
+  position: relative;
+  width: 100%;
 }
 
 .clock-marker {
-    position: absolute;
-    width: 2px;
-    height: 8px;
-    background: #000;
-    transform-origin: 50% 50%;
+  position: absolute;
+  width: 2px;
+  height: 8px;
+  background: #000;
+  transform-origin: 50% 50%;
 }
 
-.hour-hand, .minute-hand {
-    position: absolute;
-    background: #000;
-    transform-origin: bottom center;
-    left: 50%;
-    top: 50%;
+.hour-hand,
+.minute-hand {
+  position: absolute;
+  background: #000;
+  transform-origin: bottom center;
+  left: 50%;
+  top: 50%;
 }
 
 .hour-hand {
-    width: 4px;
-    height: 40px;
-    margin-left: -2px;
-    margin-top: -40px;
+  width: 4px;
+  height: 40px;
+  margin-left: -2px;
+  margin-top: -40px;
 }
 
 .minute-hand {
-    width: 2px;
-    height: 60px;
-    margin-left: -1px;
-    margin-top: -60px;
+  width: 2px;
+  height: 60px;
+  margin-left: -1px;
+  margin-top: -60px;
 }
 
 .center-dot {
-    width: 8px;
-    height: 8px;
-    background: #333;
-    border-radius: 50%;
-    position: absolute;
-    width: 6px;
-    height: 6px;
-    background: #000;
-    border-radius: 50%;
-    top: 50%;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background: #333;
+  border-radius: 50%;
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #000;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
 }
 
 /* Hour markers */
 #analog-clock::before {
-    content: '';
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    top: 0;
-    left: 0;
-    border-radius: 50%;
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  border-radius: 50%;
 }
 
 .hour-marker {
-    position: absolute;
-    width: 6px;
-    height: 6px;
-    background: #333;
-    border-radius: 50%;
-    transform-origin: 50% 50%;
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #333;
+  border-radius: 50%;
+  transform-origin: 50% 50%;
 }
 
 /* Position the hour markers */
-.hour-marker:nth-child(1) { transform: translate(77px, 10px); }  /* 12 o'clock */
-.hour-marker:nth-child(2) { transform: translate(120px, 25px); } /* 1 o'clock */
-.hour-marker:nth-child(3) { transform: translate(135px, 77px); } /* 3 o'clock */
-.hour-marker:nth-child(4) { transform: translate(120px, 129px); } /* 5 o'clock */
-.hour-marker:nth-child(5) { transform: translate(77px, 144px); } /* 6 o'clock */
-.hour-marker:nth-child(6) { transform: translate(25px, 129px); } /* 7 o'clock */
-.hour-marker:nth-child(7) { transform: translate(10px, 77px); } /* 9 o'clock */
-.hour-marker:nth-child(8) { transform: translate(25px, 25px); } /* 11 o'clock */
+.hour-marker:nth-child(1) {
+  transform: translate(77px, 10px);
+} /* 12 o'clock */
+.hour-marker:nth-child(2) {
+  transform: translate(120px, 25px);
+} /* 1 o'clock */
+.hour-marker:nth-child(3) {
+  transform: translate(135px, 77px);
+} /* 3 o'clock */
+.hour-marker:nth-child(4) {
+  transform: translate(120px, 129px);
+} /* 5 o'clock */
+.hour-marker:nth-child(5) {
+  transform: translate(77px, 144px);
+} /* 6 o'clock */
+.hour-marker:nth-child(6) {
+  transform: translate(25px, 129px);
+} /* 7 o'clock */
+.hour-marker:nth-child(7) {
+  transform: translate(10px, 77px);
+} /* 9 o'clock */
+.hour-marker:nth-child(8) {
+  transform: translate(25px, 25px);
+} /* 11 o'clock */
 
 .sky-layer {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 1;
-    transition: opacity 10s ease-in-out;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+  transition: opacity 10s ease-in-out;
 }
 
 .sky-layer.hidden {
-    opacity: 0;
-    visibility: hidden;  
-    transition: opacity 10s ease-in-out, visibility 0s linear 10s;  
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 10s ease-in-out, visibility 0s linear 10s;
 }
 
 .sky-layer.night {
-    background: linear-gradient(to bottom, #1a1a2e, #16213e);
-    z-index: 1;
+  background: linear-gradient(to bottom, #1a1a2e, #16213e);
+  z-index: 1;
 }
 
 .sky-layer.moonrise {
-    /* background: linear-gradient(to bottom, 
+  /* background: linear-gradient(to bottom, 
         #1a1a2e 0%,
         #2d3047 30%,
         #474b6b 60%,
         #8b7f93 85%,
         #c8a2c8 100%
     ); */
-    z-index: 2;
+  z-index: 2;
 }
 
 .sky-layer.dusk {
-    background: linear-gradient(to bottom, #FF7F50, #2b2b4a);
-    z-index: 3;
+  background: linear-gradient(to bottom, #ff7f50, #2b2b4a);
+  z-index: 3;
 }
 
 .sky-layer.day {
-    background: linear-gradient(to bottom, #87CEEB, #E0FFFF);
-    z-index: 4;
+  background: linear-gradient(to bottom, #87ceeb, #e0ffff);
+  z-index: 4;
 }
 
 .sky-layer.dawn {
-    background: linear-gradient(to bottom, #FFB6C1, #87CEEB);
-    z-index: 5;
+  background: linear-gradient(to bottom, #ffb6c1, #87ceeb);
+  z-index: 5;
 }
 
 #stars {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    transition: opacity 1s ease;
-    z-index: 3;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transition: opacity 1s ease;
+  z-index: 3;
 }
 
 .scene-night #stars {
-    display: block;
+  display: block;
 }
 
 .star {
-    position: absolute;
-    background: white;
-    border-radius: 50%;
-    animation: twinkle 1.5s infinite ease-in-out;
-    z-index: 3;
+  position: absolute;
+  background: white;
+  border-radius: 50%;
+  animation: twinkle 1.5s infinite ease-in-out;
+  z-index: 3;
 }
 
 .star.small {
-    width: 2px;
-    height: 2px;
+  width: 2px;
+  height: 2px;
 }
 
 .star.medium {
-    width: 3px;
-    height: 3px;
+  width: 3px;
+  height: 3px;
 }
 
 .star.large {
-    width: 4px;
-    height: 4px;
+  width: 4px;
+  height: 4px;
 }
 
 #star-container {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    z-index: 1;
-    transition: opacity 10s ease-in-out;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  transition: opacity 10s ease-in-out;
 }
 
 .ufo {
-    position: absolute;
-    top: 50px;
-    left: 50%;
-    width: 100px;
-    height: 25px;
-    background: #C0C0C0;
-    border-radius: 90% / 70%;
-    box-shadow: 0 5px 20px #FFFFFF4D;
-    animation: 
-        hover 3s infinite ease-in-out,
-        wobble 0.5s infinite ease-in-out alternate,
-        drift 15s infinite linear;
-    transform-origin: center;
-    z-index: 6;
+  position: absolute;
+  top: 50px;
+  left: 50%;
+  width: 100px;
+  height: 25px;
+  background: #c0c0c0;
+  border-radius: 90% / 70%;
+  box-shadow: 0 5px 20px #ffffff4d;
+  animation: hover 3s infinite ease-in-out,
+    wobble 0.5s infinite ease-in-out alternate, drift 15s infinite linear;
+  transform-origin: center;
+  z-index: 6;
 }
 
 @keyframes hover {
-    0% { transform: translateY(0); }
-    25% { transform: translateY(-15px); }
-    50% { transform: translateY(5px); }
-    75% { transform: translateY(-10px); }
-    100% { transform: translateY(0); }
+  0% {
+    transform: translateY(0);
+  }
+  25% {
+    transform: translateY(-15px);
+  }
+  50% {
+    transform: translateY(5px);
+  }
+  75% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0);
+  }
 }
 
 @keyframes wobble {
-    from { transform: translateX(-5px) rotate(-1deg); }
-    to { transform: translateX(5px) rotate(1deg); }
+  from {
+    transform: translateX(-5px) rotate(-1deg);
+  }
+  to {
+    transform: translateX(5px) rotate(1deg);
+  }
 }
 
 @keyframes drift {
-    0% { left: -100px; }
-    15% { left: 20%; }
-    30% { left: 15%; }
-    45% { left: 40%; }
-    60% { left: 35%; }
-    75% { left: 70%; }
-    90% { left: 65%; }
-    100% { left: 110%; }
+  0% {
+    left: -100px;
+  }
+  15% {
+    left: 20%;
+  }
+  30% {
+    left: 15%;
+  }
+  45% {
+    left: 40%;
+  }
+  60% {
+    left: 35%;
+  }
+  75% {
+    left: 70%;
+  }
+  90% {
+    left: 65%;
+  }
+  100% {
+    left: 110%;
+  }
 }
 
 .bubble {
-    position: absolute;
-    top: -14px;
-    left: 50%;
-    width: 50px;
-    height: 30px;
-    background: linear-gradient( #ADD8E6CC 50%, #C0C0C0 50%);
-    border-radius: 50%;
-    transform: translateX(-50%);
-    box-shadow: inset 0 5px 10px #00000033;
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  width: 50px;
+  height: 30px;
+  background: linear-gradient(#add8e6cc 50%, #c0c0c0 50%);
+  border-radius: 50%;
+  transform: translateX(-50%);
+  box-shadow: inset 0 5px 10px #00000033;
 }
 
-.bubble img{
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    max-height:80%;
-    width: auto;
+.bubble img {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-height: 80%;
+  width: auto;
 }
 .ufolights {
-    position: absolute;
-    bottom: 5px;
-    left: 50%;
-    width: 160px;
-    height: 15px;
-    display: flex;
-    justify-content: space-around;
-    transform: translateX(-50%);
-
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  width: 160px;
+  height: 15px;
+  display: flex;
+  justify-content: space-around;
+  transform: translateX(-50%);
 }
 
 .ufolight {
-    width: 15px;
-    height: 15px;
-    background: #FF0000;
-    border-radius: 50%;
-    box-shadow: 0 0 10px #FF0000;
-
+  width: 15px;
+  height: 15px;
+  background: #ff0000;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #ff0000;
 }
 
-.ufolight:nth-child(1){
-    animation: blink 1s ease-in-out infinite;
-    animation-delay: 0s;
+.ufolight:nth-child(1) {
+  animation: blink 1s ease-in-out infinite;
+  animation-delay: 0s;
 }
 /* .ufolight:nth-child(2) {
     background: #FFFF00;
@@ -387,450 +436,538 @@ body {
 } */
 
 .ufolight:nth-child(2) {
-    animation: blink 1s ease-in-out infinite;
-    background: #008000;
-    box-shadow: 0 0 10px #008000;
-    animation-delay: 0.5s;
+  animation: blink 1s ease-in-out infinite;
+  background: #008000;
+  box-shadow: 0 0 10px #008000;
+  animation-delay: 0.5s;
 }
 
 @keyframes blink {
-    from {
-        opacity: 1;
-    }
-    to {
-        opacity: 0.2;
-    }
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.2;
+  }
 }
 
 #cityscape {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 70vh;
-    z-index: 5;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 70vh;
+  z-index: 100;
 }
 
 .building {
-    position: absolute;
-    bottom: 0;
-    background: #2c3e50;
-    border: 1px solid #555555;
-    box-shadow: 2px 2px 5px #555555;
-    border-radius: 2px -1px 3px 0.8px;
-    transition: background-color 1s ease;
-    padding: 10px;
-    box-sizing: border-box;
-    overflow: hidden;
+  position: absolute;
+  bottom: 0;
+  background: #2c3e50;
+  border: 1px solid #555555;
+  box-shadow: 2px 2px 5px #555555;
+  border-radius: 2px -1px 3px 0.8px;
+  transition: background-color 1s ease;
+  padding: 10px;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .window-container {
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    box-sizing: border-box;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .floor {
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-    margin-bottom: 6px;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 6px;
 }
 
 .floor:last-child {
-    margin-bottom: 0;
+  margin-bottom: 0;
 }
 
 .window {
-    width: 25px;
-    height: 35px;
-    min-width:25px;
-    background: linear-gradient(45deg, #B9E1FF 0%, #1C6EA4 100%);
-    transition: background-color 0.3s ease;
+  width: 25px;
+  height: 35px;
+  min-width: 25px;
+  background: linear-gradient(45deg, #b9e1ff 0%, #1c6ea4 100%);
+  transition: background-color 0.3s ease;
 }
 
 .night .window:not(.lit) {
-    background-color: #1a1a1a;
+  background-color: #1a1a1a;
 }
 
 .night .window.lit {
-    background-color: #ffeb3b;
-    box-shadow: 0 0 10px rgba(255, 235, 59, 0.5);
+  background-color: #ffeb3b;
+  box-shadow: 0 0 10px rgba(255, 235, 59, 0.5);
 }
 
 .house {
-    position: absolute;
-    bottom: 0;
-    width: 120px;
-    height: 100px;
-    border-radius: 5px 5px 0 0;
-    transition: all 1s ease;
-    border: 1px solid #555555;
-    box-shadow: 2px 2px 5px #555555;
+  position: absolute;
+  bottom: 0;
+  width: 120px;
+  height: 100px;
+  border-radius: 5px 5px 0 0;
+  transition: all 1s ease;
+  border: 1px solid #555555;
+  box-shadow: 2px 2px 5px #555555;
 }
 
 .roof {
-    position: absolute;
-    top: -30px;
-    left: 0;
-    width: 100%;
-    height: 30px;
-    clip-path: polygon(0 100%, 50% 0, 100% 100%);
-    transition: filter 1s ease;
-    border: 1px solid #555555;
-    box-shadow: 2px 2px 5px #555555;
-
+  position: absolute;
+  top: -30px;
+  left: 0;
+  width: 100%;
+  height: 30px;
+  clip-path: polygon(0 100%, 50% 0, 100% 100%);
+  transition: filter 1s ease;
+  border: 1px solid #555555;
+  box-shadow: 2px 2px 5px #555555;
 }
 
 .door {
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 30px;
-    height: 50px;
-    border-radius: 3px 3px 0 0;
-    transition: filter 1s ease;
-    box-shadow: inset 0 5px 5px rgba(0, 0, 0, 0.2);
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30px;
+  height: 50px;
+  border-radius: 3px 3px 0 0;
+  transition: filter 1s ease;
+  box-shadow: inset 0 5px 5px rgba(0, 0, 0, 0.2);
 }
 
 .door::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    right: 5px;
-    width: 5px;
-    height: 5px;
-    background: #FFD700;
-    border-radius: 50%;
-    box-shadow: 0 0 2px #FFD700;
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  width: 5px;
+  height: 5px;
+  background: #ffd700;
+  border-radius: 50%;
+  box-shadow: 0 0 2px #ffd700;
 }
 
 .scene-night .house,
 .scene-night .roof,
 .scene-night .door {
-    filter: brightness(0.7);
+  filter: brightness(0.7);
 }
 
 .house-window-left,
 .house-window-right {
-    position: absolute;
-    width: 25px;
-    height: 35px;
-    background: linear-gradient(45deg, #B9E1FF 0%, #1C6EA4 100%);
-    border-radius: 3px;
-    transition: all 0.5s ease;
+  position: absolute;
+  width: 25px;
+  height: 35px;
+  background: linear-gradient(45deg, #b9e1ff 0%, #1c6ea4 100%);
+  border-radius: 3px;
+  transition: all 0.5s ease;
 }
 
 .house-window-left {
-    left: 10px;
-    bottom: 20px;
+  left: 10px;
+  bottom: 20px;
 }
 
 .house-window-right {
-    right: 10px;
-    bottom: 20px;
+  right: 10px;
+  bottom: 20px;
 }
 
 .house-window-left.lit,
 .house-window-right.lit {
-    background: #FFD700;
-    box-shadow: 0 0 15px rgba(255, 255, 224, 0.5);
+  background: #ffd700;
+  box-shadow: 0 0 15px rgba(255, 255, 224, 0.5);
 }
 
 .streetlamp {
-    position: absolute;
-    bottom: 0;
-    width: 6px;
-    height: 100px;
-    background-color: #121314;
-    z-index: 150;
+  position: absolute;
+  bottom: 0;
+  width: 6px;
+  height: 100px;
+  background-color: #121314;
+  z-index: 150;
 }
 
 .lamp-light {
-    position: absolute;
-    top: -5px;
-    left: -7px;
-    width: 20px;
-    height: 20px;
-    background: #FFD700;
-    border-radius: 50%;
-    box-shadow: 0 0 20px #FFD700;
-    transition: all 0.5s ease;
+  position: absolute;
+  top: -5px;
+  left: -7px;
+  width: 20px;
+  height: 20px;
+  background: #ffd700;
+  border-radius: 50%;
+  box-shadow: 0 0 20px #ffd700;
+  transition: all 0.5s ease;
 }
 
 .lamp-light.day {
-    background-color: #ffffff;
-    transition: all 0.5s ease;
+  background-color: #ffffff;
+  transition: all 0.5s ease;
 }
 
 .lamp-light.night {
-    background-color: #ffeb3b;
-    transition: all 0.5s ease;
+  background-color: #ffeb3b;
+  transition: all 0.5s ease;
 }
 
-.lamp-down.night{
- 
-    opacity:0.8;
-    box-shadow: 0 25px 30px 30px #FFD700;
-    transition: all 0.5s ease;
-
+.lamp-down.night {
+  opacity: 0.8;
+  box-shadow: 0 25px 30px 30px #ffd700;
+  transition: all 0.5s ease;
 }
 
 .cloud {
-    position: absolute;
-    background: #FFFFFF;
-    border-radius: 35px;
-    opacity: 0.8;
-    transition: background-color 2s ease;
-    z-index: 150;
+  position: absolute;
+  background: #ffffff;
+  border-radius: 35px;
+  opacity: 0.8;
+  transition: background-color 2s ease;
+  z-index: 150;
 }
 
 .cloud::before,
 .cloud::after {
-    content: '';
-    position: absolute;
-    background: inherit;
-    border-radius: 50%;
+  content: "";
+  position: absolute;
+  background: inherit;
+  border-radius: 50%;
 }
 
 .cloud::before {
-    width: 50%;
-    height: 100%;
-    top: -50%;
-    left: 25%;
+  width: 50%;
+  height: 100%;
+  top: -50%;
+  left: 25%;
 }
 
 .cloud::after {
-    width: 30%;
-    height: 60%;
-    top: -30%;
-    left: 10%;
+  width: 30%;
+  height: 60%;
+  top: -30%;
+  left: 10%;
 }
 
 .scene-night .cloud {
-    background: #A9A9A9;
-    opacity: 0.4;
+  background: #a9a9a9;
+  opacity: 0.4;
 }
 
 #controls {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 10px;
-    z-index: 1000;
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  z-index: 1000;
 }
 
-.control-buttons{
-    display:flex;
-    flex-direction: row;
-    gap: 10px;
+.control-buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
 }
 
 button {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.9);
-    cursor: pointer;
-    font-size: 14px;
-    width: 120px;
-    transition: background-color 0.3s;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  font-size: 14px;
+  width: 120px;
+  transition: background-color 0.3s;
 }
 
 button:hover {
-    background: rgba(255, 255, 255, 1);
+  background: rgba(255, 255, 255, 1);
 }
 
-#sun, #moon {
-    position: absolute;
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    z-index: 5;
-}
-
-#sun {
-    background: #FFD700;
-    box-shadow: 0 0 50px #FFD700;
-}
-
+/* Sun and Moon animations */
+#sun,
 #moon {
-    background: #F5F5F5;
-    box-shadow: 0 0 30px rgba(245, 245, 245, 0.6);
+  position: absolute;
+  transform: none;
+}
+
+#sun.visible,
+#moon.visible {
+  opacity: 1;
+}
+
+.sun-animation {
+  animation: sun-x var(--animation-duration) linear forwards,
+    sun-y var(--animation-duration) cubic-bezier(0.2, 0, 0.8, 1) forwards;
+}
+
+.moon-animation {
+  animation: moon-x var(--animation-duration) linear forwards,
+    moon-y var(--animation-duration) cubic-bezier(0.2, 0, 0.8, 1) forwards;
+}
+
+@keyframes sun-x {
+  0% {
+    left: -100px;
+  }
+  100% {
+    left: calc(100vw + 100px);
+  }
+}
+
+@keyframes sun-y {
+  0% {
+    top: calc(0.9 * 100vh);
+  }
+  50% {
+    top: calc(0.4 * 100vh);
+  }
+  100% {
+    top: calc(0.9 * 100vh);
+  }
+}
+
+@keyframes moon-x {
+  0% {
+    left: -100px;
+  }
+  100% {
+    left: calc(100vw + 100px);
+  }
+}
+
+@keyframes moon-y {
+  0% {
+    top: calc(0.9 * 100vh);
+  }
+  50% {
+    top: calc(0.4 * 100vh);
+  }
+  100% {
+    top: calc(0.9 * 100vh);
+  }
 }
 
 #clock {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: rgba(0, 0, 0, 0.5);
-    color: white;
-    padding: 10px 15px;
-    border-radius: 5px;
-    font-family: monospace;
-    font-size: 20px;
-    z-index: 1000;
-    pointer-events: none;
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  padding: 10px 15px;
+  border-radius: 5px;
+  font-family: monospace;
+  font-size: 20px;
+  z-index: 1000;
+  pointer-events: none;
 }
 
 .scene-day .house {
-    background-color: var(--house-color-day);
+  background-color: var(--house-color-day);
 }
 
 .scene-night .house {
-    background-color: var(--house-color-night);
+  background-color: var(--house-color-night);
 }
 
 .scene-day .house::before {
-    background-color: var(--roof-color-day);
+  background-color: var(--roof-color-day);
 }
 
 .scene-night .house::before {
-    background-color: var(--roof-color-night);
+  background-color: var(--roof-color-night);
 }
 
 .scene-day .house::after {
-    background-color: var(--door-color-day);
+  background-color: var(--door-color-day);
 }
 
 .scene-night .house::after {
-    background-color: var(--door-color-night);
+  background-color: var(--door-color-night);
 }
 
 .moon-crater {
-    position: absolute;
-    background: #E0E0E0;
-    border-radius: 50%;
+  position: absolute;
+  background: #e0e0e0;
+  border-radius: 50%;
 }
 
 .moon-crater:nth-child(1) {
-    width: 15px;
-    height: 15px;
-    top: 10px;
-    left: 10px;
+  width: 15px;
+  height: 15px;
+  top: 10px;
+  left: 10px;
 }
 
 .moon-crater:nth-child(2) {
-    width: 10px;
-    height: 10px;
-    top: 25px;
-    right: 15px;
+  width: 10px;
+  height: 10px;
+  top: 25px;
+  right: 15px;
 }
 
 .moon-crater:nth-child(3) {
-    width: 12px;
-    height: 12px;
-    bottom: 10px;
-    left: 20px;
+  width: 12px;
+  height: 12px;
+  bottom: 10px;
+  left: 20px;
 }
 
 .moon-crater:nth-child(4) {
-    width: 8px;
-    height: 8px;
-    bottom: 15px;
-    right: 10px;
+  width: 8px;
+  height: 8px;
+  bottom: 15px;
+  right: 10px;
 }
 
 .speed-control {
-
-    border-radius: 10px;
-    transform: translateX(-50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 5px;
-    z-index: 1000;
+  border-radius: 10px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  z-index: 1000;
 }
 
 .speed-control input[type="range"] {
-    width: 200px;
-    height: 10px;
-    -webkit-appearance: none;
-    appearance: none;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 5px;
-    outline: none;
+  width: 200px;
+  height: 10px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
+  outline: none;
 }
 
 .speed-control input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 20px;
-    height: 20px;
-    background: #fff;
-    border-radius: 50%;
-    cursor: pointer;
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  background: #fff;
+  border-radius: 50%;
+  cursor: pointer;
 }
 
 #speedDisplay {
-    color: white;
-    font-size: 14px;
-    font-family:'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+  color: white;
+  font-size: 14px;
+  font-family: "Franklin Gothic Medium", "Arial Narrow", Arial, sans-serif;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 #toggleClock {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background: #fff;
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    cursor: pointer;
-    z-index: 11;
-    border: 1px solid #ccc;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #fff;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  cursor: pointer;
+  z-index: 11;
+  border: 1px solid #ccc;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 #toggleClock.active {
-    box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2);
+  box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 #toggleClock:hover {
-    background: #f5f5f5;
+  background: #f5f5f5;
 }
 
 #digital-clock {
-    position: absolute;
-    top: 50px;
-    right: 50px;
-    font-size: 24px;
-    color: #fff;
-    background: rgba(0, 0, 0, 0.5);
-    padding: 10px 15px;
-    border-radius: 5px;
-    z-index: 10;
-    display: none;
+  position: absolute;
+  top: 50px;
+  right: 50px;
+  font-size: 24px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 10px 15px;
+  border-radius: 5px;
+  z-index: 10;
+  display: none;
 }
 
 #digital-clock.active {
-    display: block;
+  display: block;
 }
 
 .controls {
-    display: flex;
-    gap: 10px;
-    margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 .controls button {
-    margin: 5px;
-    padding: 5px 10px;
-    border-radius: 4px;
-    border: 1px solid #aaa;
-    background: #eee;
-    cursor: pointer;
-    font-size: 12px;
-    outline: none;
-    transition: all 0.2s ease-in-out;
+  margin: 5px;
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid #aaa;
+  background: #eee;
+  cursor: pointer;
+  font-size: 12px;
+  outline: none;
+  transition: all 0.2s ease-in-out;
 }
 
 .controls button:active {
-    box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2);
+  box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.sun {
+  display: block;
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: #ffdd00;
+  box-shadow: 0 0 30px #ffdd00, 0 0 60px #ffbb00;
+  z-index: 90;
+  top: 0;
+  left: 0;
+  transform: translate(-200px, 100vh);
+  transition: opacity 0.5s ease;
+}
+
+.sun.visible {
+  opacity: 1;
+  animation-name: sun-path;
+  animation-duration: 40s;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+.moon {
+  display: block;
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: #ddd;
+  box-shadow: 0 0 20px #ddd;
+  z-index: 90;
+  top: 0;
+  left: 0;
+  transform: translate(-200px, 100vh);
+  transition: opacity 0.5s ease;
+}
+
+.moon.visible {
+  opacity: 1;
+  animation-name: moon-path;
+  animation-duration: 40s;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
 }
