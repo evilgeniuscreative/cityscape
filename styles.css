@@ -399,6 +399,7 @@ body {
   max-height: 80%;
   width: auto;
 }
+
 .ufolights {
   position: absolute;
   bottom: 5px;
@@ -494,16 +495,27 @@ body {
   height: 35px;
   min-width: 25px;
   background: linear-gradient(45deg, #b9e1ff 0%, #1c6ea4 100%);
-  transition: background-color 0.3s ease;
+  transition: background-color 0.3s ease, background-image 0.3s ease, box-shadow 0.3s ease;
 }
 
-.night .window:not(.lit) {
+.scene-night .window:not(.lit) {
   background-color: #1a1a1a;
+  background-image: none;
 }
 
-.night .window.lit {
+.scene-night .window.lit {
   background-color: #ffeb3b;
+  background-image: none;
   box-shadow: 0 0 10px rgba(255, 235, 59, 0.5);
+}
+
+.window.lit {
+  background-color: #ffeb3b;
+  background-image: none;
+}
+
+.scene-dusk .window:not(.lit) {
+  background: linear-gradient(45deg, #b9e1ff 0%, #1c6ea4 100%);
 }
 
 .house {
@@ -562,11 +574,10 @@ body {
 .house-window-left,
 .house-window-right {
   position: absolute;
-  width: 25px;
-  height: 35px;
+  width: 15px;
+  height: 20px;
   background: linear-gradient(45deg, #b9e1ff 0%, #1c6ea4 100%);
-  border-radius: 3px;
-  transition: all 0.5s ease;
+  transition: background-color 0.3s ease, background-image 0.3s ease, box-shadow 0.3s ease;
 }
 
 .house-window-left {
@@ -579,9 +590,28 @@ body {
   bottom: 20px;
 }
 
+.scene-night .house-window-left.lit,
+.scene-night .house-window-right.lit {
+  background: #ffd700;
+  background-image: none;
+  box-shadow: 0 0 15px rgba(255, 255, 224, 0.5);
+}
+
+.scene-night .house-window-left:not(.lit),
+.scene-night .house-window-right:not(.lit) {
+  background-color: #1a1a1a;
+  background-image: none;
+}
+
+.scene-dusk .house-window-left:not(.lit),
+.scene-dusk .house-window-right:not(.lit) {
+  background: linear-gradient(45deg, #b9e1ff 0%, #1c6ea4 100%);
+}
+
 .house-window-left.lit,
 .house-window-right.lit {
   background: #ffd700;
+  background-image: none;
   box-shadow: 0 0 15px rgba(255, 255, 224, 0.5);
 }
 
@@ -994,20 +1024,25 @@ button:hover {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(to bottom, #87ceeb, #e0ffff);
+  background-color: #fff;
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 9999;
-  transition: opacity 0.5s ease-out, visibility 0.5s ease-out;
+  transition: opacity 0.5s ease;
+}
+
+#loading-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .spinner {
   width: 50px;
   height: 50px;
-  border: 5px solid rgba(255, 255, 255, 0.3);
+  border: 5px solid rgba(0, 0, 0, 0.1);
   border-radius: 50%;
-  border-top-color: #fff;
+  border-top-color: #3498db;
   animation: spin 1s ease-in-out infinite;
 }
 
@@ -1017,7 +1052,9 @@ button:hover {
   }
 }
 
-#loading-overlay.hidden {
-  opacity: 0;
-  visibility: hidden;
+/* Hide all UI elements until scene is loaded */
+body.loading #scene-container,
+body.loading #controls,
+body.loading #clock {
+  visibility: hidden !important;
 }

@@ -1,6 +1,6 @@
 // Configuration
 const CYCLE_DURATION = 120000; // Milliseconds for one 24-hour cycle (2 minutes)
-const DEBUG = false; // Enable/disable debug logging
+const DEBUG = true; // Enable/disable debug logging
 
 // Helper for debug logging
 function log(message) {
@@ -83,6 +83,13 @@ class CityScene {
     this.isClockVisible = true;
     this.isInitialized = false;
     this.loadingComplete = false;
+    this.lastWindowUpdate = null;
+    this.lastWindowGroupOn = null;
+    this.windowsOff = new Set(); // Track windows that have been turned off
+    this.windowsOn = new Set(); // Track windows that are currently on
+    this.animationStarted = false;
+    this.animationRunning = false;
+    this.lastWindowOffTime = null;
 
     // Store references to event handlers for proper cleanup
     this.eventHandlers = {
@@ -101,6 +108,9 @@ class CityScene {
   init() {
     // Show loading spinner
     const loadingOverlay = document.getElementById('loading-overlay');
+    if (loadingOverlay) {
+      loadingOverlay.style.display = 'flex';
+    }
     
     // Get references to DOM elements
     this.sceneContainer = document.getElementById("scene-container");
@@ -147,6 +157,7 @@ class CityScene {
       // Hide loading overlay
       if (loadingOverlay) {
         loadingOverlay.classList.add('hidden');
+        loadingOverlay.style.display = 'none';
       }
       
       // Start animation
@@ -157,6 +168,9 @@ class CityScene {
       this.updatePhases(timeOfDay);
       this.updateCelestialBodies(timeOfDay);
       this.updateClock(timeOfDay);
+      
+      // Set a timeout to check if animation is running
+      setTimeout(() => this.checkAnimationStatus(), 2000);
     }, 1500); // Show loading for at least 1.5 seconds
   }
 
@@ -403,9 +417,7 @@ class CityScene {
         for (let w = 0; w < windowsPerFloor; w++) {
           const window = document.createElement("div");
           window.className = "window";
-          if (Math.random() < 0.3) {
-            window.classList.add("lit");
-          }
+          // Windows start unlit - our updateWindowLights method will handle lighting
           floorDiv.appendChild(window);
         }
 
@@ -490,19 +502,15 @@ class CityScene {
       // Fixed z-index of 20 (houses always in front of buildings)
       house.style.zIndex = 20;
 
-      // Add windows with random lighting
+      // Add windows - start unlit
       const leftWindow = document.createElement("div");
       leftWindow.className = "house-window-left";
-      if (Math.random() < 0.3) {
-        leftWindow.classList.add("lit");
-      }
+      // Windows start unlit - our updateWindowLights method will handle lighting
       house.appendChild(leftWindow);
 
       const rightWindow = document.createElement("div");
       rightWindow.className = "house-window-right";
-      if (Math.random() < 0.3) {
-        rightWindow.classList.add("lit");
-      }
+      // Windows start unlit - our updateWindowLights method will handle lighting
       house.appendChild(rightWindow);
 
       this.cityscape.appendChild(house);
@@ -666,18 +674,9 @@ class CityScene {
   }
 
   updateCelestialBodies(timeOfDay) {
-    // Ensure celestial bodies exist
-    if (!this.sun || !this.moon) {
-      log(
-        "ERROR: Celestial bodies missing in updateCelestialBodies, recreating"
-      );
-      this.setupCelestialBodies();
-      return;
-    }
-
     // Calculate which bodies should be visible based on the hour of day
     const hourOfDay = timeOfDay * 24;
-
+    
     // Sun: visible from dawn (5:30am) through dusk (8pm)
     // Moon: visible from dusk (6pm) through dawn (5:30am)
     
@@ -689,10 +688,8 @@ class CityScene {
       const sunProgress = (hourOfDay - 5.5) / sunDayLength;
       
       // Make sun visible
-      if (!this.sun.classList.contains('visible')) {
-        this.sun.style.opacity = "1";
-        this.sun.classList.add('visible');
-      }
+      this.sun.style.opacity = "1";
+      this.sun.classList.add('visible');
       
       // Get viewport dimensions
       const viewportWidth = window.innerWidth;
@@ -761,10 +758,8 @@ class CityScene {
       }
       
       // Make moon visible
-      if (!this.moon.classList.contains('visible')) {
-        this.moon.style.opacity = "1";
-        this.moon.classList.add('visible');
-      }
+      this.moon.style.opacity = "1";
+      this.moon.classList.add('visible');
       
       // Get viewport dimensions
       const viewportWidth = window.innerWidth;
@@ -941,12 +936,10 @@ class CityScene {
     const ampm = hours >= 12 ? "PM" : "AM";
 
     // Update digital clock
-    if (this.digitalClock) {
-      this.digitalClock.textContent = `${hours12}:${String(minutes).padStart(
-        2,
-        "0"
-      )} ${ampm}`;
-    }
+    this.digitalClock.textContent = `${hours12}:${String(minutes).padStart(
+      2,
+      "0"
+    )} ${ampm}`;
 
     // Update analog clock
     if (this.hourHand && this.minuteHand) {
@@ -978,6 +971,286 @@ class CityScene {
           .minuteHand}`
       );
     }
+  }
+
+  updateWindowLights(timeOfDay) {
+    // Convert timeOfDay (0-1) to hours (0-24)
+    const hourOfDay = timeOfDay * 24;
+    
+    // Only update window lighting occasionally to improve performance
+    const now = Date.now();
+    if (!this.lastWindowUpdate || now - this.lastWindowUpdate > 500) { 
+      this.lastWindowUpdate = now;
+      
+      // Log window lighting status occasionally
+      if (DEBUG && Math.random() < 0.01) {
+        log(`Window lighting update - Hour of day: ${hourOfDay.toFixed(2)}`);
+      }
+      
+      try {
+        // TURNING LIGHTS ON: Only between 5pm-7pm (with small chance for outliers until 1am)
+        if (hourOfDay >= 17 && hourOfDay < 25) {
+          // Check if enough real time has passed since last group of lights turned on (10 seconds)
+          const realSecondsBetweenGroups = 10000; // 10 real seconds
+          const canTurnOnNewGroup = !this.lastWindowGroupOn || (now - this.lastWindowGroupOn > realSecondsBetweenGroups);
+          
+          if (canTurnOnNewGroup) {
+            // Determine if this is a time when lights should turn on
+            let turnOnProbability;
+            
+            if (hourOfDay >= 17 && hourOfDay < 19) {
+              // 5pm-7pm: High probability (90% of lights turn on during this period)
+              turnOnProbability = 0.4; // High chance during peak hours
+            } else {
+              // 7pm-1am: Low probability (10% of lights are outliers)
+              turnOnProbability = 0.02; // Very low chance for outliers
+            }
+            
+            // Random chance to turn on a group of lights
+            if (Math.random() < turnOnProbability) {
+              // Get all available windows (not already on or off) - limit DOM queries
+              const houses = Array.from(document.querySelectorAll(".house")).slice(0, 10); // Limit to 10 houses
+              const buildingWindows = document.querySelectorAll(".building .window");
+              
+              // Track windows we'll turn on in this group
+              const windowsToTurnOn = [];
+              
+              // Process house windows - ALL house windows should come on between 5-7pm
+              if (hourOfDay >= 17 && hourOfDay < 19) {
+                for (let i = 0; i < houses.length; i++) {
+                  const house = houses[i];
+                  const leftWindow = house.querySelector(".house-window-left");
+                  const rightWindow = house.querySelector(".house-window-right");
+                  
+                  // Only consider windows that aren't already on or off
+                  if (leftWindow && !this.windowsOn.has(leftWindow) && !this.windowsOff.has(leftWindow)) {
+                    windowsToTurnOn.push(leftWindow);
+                  }
+                  
+                  if (rightWindow && !this.windowsOn.has(rightWindow) && !this.windowsOff.has(rightWindow)) {
+                    windowsToTurnOn.push(rightWindow);
+                  }
+                }
+              }
+              
+              // Process building windows - at least 40% should come on between 5-7pm
+              // Increase to 40-80% maximum that can be on in total (more lights as evening approaches)
+              const buildingWindowsArray = Array.from(buildingWindows);
+              const minBuildingWindowsOn = Math.floor(buildingWindowsArray.length * 0.4); // At least 40%
+              const maxBuildingWindowsOn = Math.floor(buildingWindowsArray.length * (Math.random() * 0.4 + 0.4)); // 40-80% max
+              const targetBuildingWindowsOn = Math.max(minBuildingWindowsOn, maxBuildingWindowsOn);
+              
+              const currentBuildingWindowsOn = Array.from(this.windowsOn).filter(w => 
+                w.classList.contains('window') && !w.classList.contains('house-window-left') && !w.classList.contains('house-window-right')
+              ).length;
+              
+              // Only turn on more building windows if we haven't reached the target
+              if (currentBuildingWindowsOn < targetBuildingWindowsOn) {
+                // How many more can we turn on
+                const remainingAllowed = targetBuildingWindowsOn - currentBuildingWindowsOn;
+                
+                // Get building windows that aren't already on or off - use a more efficient approach
+                const availableBuildingWindows = [];
+                const maxToCheck = Math.min(buildingWindowsArray.length, 100); // Limit how many we check
+                
+                for (let i = 0; i < maxToCheck; i++) {
+                  const window = buildingWindowsArray[Math.floor(Math.random() * buildingWindowsArray.length)];
+                  if (window && !this.windowsOn.has(window) && !this.windowsOff.has(window)) {
+                    availableBuildingWindows.push(window);
+                    if (availableBuildingWindows.length >= remainingAllowed) {
+                      break; // We have enough
+                    }
+                  }
+                }
+                
+                // Take a random subset to turn on
+                const selectedBuildingWindows = availableBuildingWindows.slice(0, Math.min(Math.floor(Math.random() * 15) + 5, remainingAllowed));
+                
+                // Add selected building windows to the turn-on list
+                windowsToTurnOn.push(...selectedBuildingWindows);
+              }
+              
+              // If we have windows to turn on, do it and update tracking
+              if (windowsToTurnOn.length > 0) {
+                // Turn on all windows in this group
+                for (let i = 0; i < windowsToTurnOn.length; i++) {
+                  const window = windowsToTurnOn[i];
+                  window.classList.add('lit');
+                  this.windowsOn.add(window);
+                }
+                
+                // Update timestamp for when this group was turned on
+                this.lastWindowGroupOn = now;
+                
+                if (DEBUG && Math.random() < 0.1) {
+                  log(`Turned ON ${windowsToTurnOn.length} windows at hour ${hourOfDay.toFixed(2)}`);
+                }
+              }
+            }
+          }
+        }
+        
+        // TURNING LIGHTS OFF: Process windows that are on to see if they should turn off
+        // Turn off in small groups with at least 0.3 seconds between groups
+        if (hourOfDay >= 20 && hourOfDay < 25) {
+          // Get all windows that are currently on
+          const litWindows = Array.from(this.windowsOn);
+          
+          // Check if enough time has passed since last window group turned off
+          const lastWindowOffTime = this.lastWindowOffTime || 0;
+          const timeSinceLastOff = now - lastWindowOffTime;
+          const minTimeBetweenOffs = 300; // At least 0.3 seconds between groups
+          
+          if (litWindows.length > 0 && timeSinceLastOff > minTimeBetweenOffs) {
+            // Calculate probability of turning off based on time
+            let turnOffProbability;
+            
+            if (hourOfDay < 22) {
+              // 8pm-10pm: Low probability
+              turnOffProbability = 0.2;
+            } else if (hourOfDay < 24) {
+              // 10pm-12am: Medium probability
+              turnOffProbability = 0.4;
+            } else {
+              // 12am-1am: High probability
+              turnOffProbability = 0.6;
+            }
+            
+            // Random chance to turn off a group
+            if (Math.random() < turnOffProbability) {
+              // Turn off a small group of windows (1-10) - reduced from 15 for performance
+              const maxGroupSize = Math.min(litWindows.length, Math.floor(Math.random() * 10) + 1);
+              const windowsToTurnOff = [];
+              
+              // Select random windows to turn off
+              for (let i = 0; i < maxGroupSize; i++) {
+                const randomIndex = Math.floor(Math.random() * litWindows.length);
+                if (litWindows[randomIndex]) {
+                  windowsToTurnOff.push(litWindows[randomIndex]);
+                  litWindows.splice(randomIndex, 1); // Remove from array to avoid duplicates
+                }
+              }
+              
+              // Turn off this group
+              for (let i = 0; i < windowsToTurnOff.length; i++) {
+                const window = windowsToTurnOff[i];
+                window.classList.remove('lit');
+                this.windowsOn.delete(window);
+                this.windowsOff.add(window); // Remember this window has been turned off
+              }
+              
+              // Update timestamp for when this group was turned off
+              this.lastWindowOffTime = now;
+              
+              if (DEBUG && Math.random() < 0.05) {
+                log(`Turned OFF ${windowsToTurnOff.length} windows at hour ${hourOfDay.toFixed(2)}`);
+              }
+            }
+          }
+        }
+        
+        // FORCE ALL LIGHTS OFF at 1am, but in small groups
+        if (hourOfDay >= 25 || (hourOfDay >= 1 && hourOfDay < 7)) {
+          const litWindows = Array.from(this.windowsOn);
+          
+          // Check if enough time has passed since last window group turned off
+          const lastWindowOffTime = this.lastWindowOffTime || 0;
+          const timeSinceLastOff = now - lastWindowOffTime;
+          const minTimeBetweenOffs = 300; // At least 0.3 seconds between groups
+          
+          if (litWindows.length > 0 && timeSinceLastOff > minTimeBetweenOffs) {
+            // Turn off a small group of windows (1-10) - reduced from 15 for performance
+            const maxGroupSize = Math.min(litWindows.length, Math.floor(Math.random() * 10) + 1);
+            const windowsToTurnOff = [];
+            
+            // Select random windows to turn off
+            for (let i = 0; i < maxGroupSize; i++) {
+              const randomIndex = Math.floor(Math.random() * litWindows.length);
+              if (litWindows[randomIndex]) {
+                windowsToTurnOff.push(litWindows[randomIndex]);
+                litWindows.splice(randomIndex, 1); // Remove from array to avoid duplicates
+              }
+            }
+            
+            // Turn off this group
+            for (let i = 0; i < windowsToTurnOff.length; i++) {
+              const window = windowsToTurnOff[i];
+              window.classList.remove('lit');
+              this.windowsOn.delete(window);
+              this.windowsOff.add(window);
+            }
+            
+            // Update timestamp for when this group was turned off
+            this.lastWindowOffTime = now;
+            
+            if (DEBUG && Math.random() < 0.05) {
+              log(`Forced ${windowsToTurnOff.length} windows off at hour ${hourOfDay.toFixed(2)}, ${this.windowsOn.size} remaining`);
+            }
+          }
+        }
+        
+        // RESET for next day cycle
+        if (hourOfDay >= 7 && hourOfDay < 17) {
+          // During daytime, reset tracking for the next night
+          if (hourOfDay >= 7 && hourOfDay < 7.1) {
+            this.windowsOff.clear();
+            this.windowsOn.clear();
+            this.lastWindowGroupOn = null;
+            this.lastWindowOffTime = null;
+            
+            // Turn off any windows that might still be lit - limit DOM operations
+            const litWindows = document.querySelectorAll('.window.lit, .house-window-left.lit, .house-window-right.lit');
+            const maxToProcess = Math.min(litWindows.length, 50); // Process in batches
+            
+            for (let i = 0; i < maxToProcess; i++) {
+              if (litWindows[i]) {
+                litWindows[i].classList.remove('lit');
+              }
+            }
+            
+            if (DEBUG && Math.random() < 0.5) {
+              log(`Reset window tracking for new day at hour ${hourOfDay.toFixed(2)}`);
+            }
+          }
+        }
+      } catch (error) {
+        // Catch any errors to prevent page crashes
+        console.error("Error in updateWindowLights:", error);
+      }
+    }
+  }
+
+  calculateWindowTurnOffTime() {
+    // Use rejection sampling with the provided Gaussian mixture PDF
+    let x, y;
+    do {
+      // Generate random x between 18 (6pm) and 25 (1am)
+      x = Math.random() * 7 + 18;
+      // Generate random y between 0 and the max PDF value (approximately 0.2)
+      y = Math.random() * 0.2;
+    } while (y > this.gaussianMixturePDF(x));
+    
+    return x;
+  }
+
+  gaussianMixturePDF(x) {
+    // First Gaussian parameters
+    const mu1 = 8 + 18; // Shift to 8pm (20:00)
+    const sigma1 = Math.sqrt(5);
+    const w1 = 0.7;
+
+    // Second Gaussian parameters
+    const mu2 = 4 + 18; // Shift to 4pm (22:00)
+    const sigma2 = Math.sqrt(10);
+    const w2 = 0.3;
+
+    // Normal distribution formula
+    function normalPDF(x, mu, sigma) {
+      return (1 / (Math.sqrt(2 * Math.PI) * sigma)) * Math.exp(-Math.pow(x - mu, 2) / (2 * sigma * sigma));
+    }
+
+    // Weighted sum of both Gaussians
+    return w1 * normalPDF(x, mu1, sigma1) + w2 * normalPDF(x, mu2, sigma2);
   }
 
   calculateCelestialPosition(progress, body) {
@@ -1047,39 +1320,83 @@ class CityScene {
   }
 
   play() {
-    if (this.isPaused) {
-      // Resume from paused state
+    if (!this.isInitialized) {
+      log("Attempted to play before initialization complete");
+      return;
+    }
+
+    if (this.isPlaying) {
+      log("Animation already playing, ignoring play request");
+      return;
+    }
+
+    log("Starting animation");
+    this.isPlaying = true;
+    this.isPaused = false;
+
+    // If we were paused, adjust the start time to account for the paused duration
+    if (this.pausedAt !== null) {
       const pauseDuration = Date.now() - this.pausedAt;
       this.startTime += pauseDuration;
-      this.isPaused = false;
+      this.pausedAt = null;
     }
+
+    // Start the animation loop
+    this.animate();
     
-    this.isPlaying = true;
-    
-    // Update button text
+    // Update UI
     if (this.playPauseBtn) {
       this.playPauseBtn.textContent = "Pause";
     }
     
-    // Start animation loop
-    this.animate();
+    // Failsafe: If animation doesn't start properly, try again after a short delay
+    setTimeout(() => {
+      if (this.isPlaying && !this.animationRunning) {
+        log("Animation failsafe triggered - restarting animation");
+        cancelAnimationFrame(this.animationFrameId);
+        this.animationFrameId = requestAnimationFrame(() => this.animate());
+      }
+    }, 1000);
   }
 
   pause() {
-    this.isPlaying = false;
-    this.isPaused = true;
-    this.pausedAt = Date.now();
-    
-    // Update button text
-    if (this.playPauseBtn) {
-      this.playPauseBtn.textContent = "Play";
+    if (this.isPaused) {
+      return;
     }
-    
-    // Cancel animation frame
+
+    // Set isPlaying to false BEFORE cancelling animation frame to prevent race conditions
+    this.isPlaying = false;
+
+    // Cancel any pending animation frame
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
+    
+    // Pause all celestial animations
+    this.sun.style.animationPlayState = "paused";
+    this.moon.style.animationPlayState = "paused";
+
+    // Pause UFO animation if present
+    const ufo = document.querySelector(".ufo");
+    if (ufo) {
+      ufo.style.animationPlayState = "paused";
+    }
+
+    // Pause cloud animations
+    if (this.clouds && this.clouds.length) {
+      this.clouds.forEach((cloud) => {
+        if (cloud) {
+          cloud.style.transition = "none";
+          // Get current left position
+          const computedStyle = window.getComputedStyle(cloud);
+          cloud.style.left = computedStyle.left;
+        }
+      });
+    }
+
+    // Store the exact moment we paused
+    this.pausedAt = Date.now();
   }
 
   startAnimation() {
@@ -1095,14 +1412,15 @@ class CityScene {
     log(`Forcing initial update with timeOfDay: ${timeOfDay}`);
 
     // Make celestial bodies visible before updating positions
-    if (this.sun) this.sun.style.display = "block";
-    if (this.moon) this.moon.style.display = "block";
+    this.sun.style.display = "block";
+    this.moon.style.display = "block";
 
     // Apply immediate updates
     this.updatePhases(timeOfDay);
     this.updateCelestialBodies(timeOfDay);
     this.updateClock(timeOfDay);
     this.updateClouds();
+    this.updateWindowLights(timeOfDay);
 
     // Start animation loop
     log("Starting animation loop");
@@ -1115,109 +1433,46 @@ class CityScene {
       return;
     }
 
-    // Calculate current time of day (0-1 representing midnight to midnight)
-    const now = Date.now();
-    const elapsed = now - this.startTime;
-    const timeOfDay = (elapsed % this.options.cycleDuration) / this.options.cycleDuration;
+    try {
+      // Calculate current time of day (0-1 representing midnight to midnight)
+      const now = Date.now();
+      const elapsed = now - this.startTime;
+      const timeOfDay = (elapsed % this.options.cycleDuration) / this.options.cycleDuration;
 
-    // Update scene elements based on time of day
-    this.updatePhases(timeOfDay);
-    this.updateCelestialBodies(timeOfDay);
-    this.updateClock(timeOfDay);
-    this.updateClouds();
-
-    // Debug tracking
-    if (DEBUG) {
-      const millisecondTracking = document.getElementById(
-        "millisecond-tracking"
-      );
-      if (millisecondTracking) {
-        millisecondTracking.textContent = `Elapsed: ${elapsed.toFixed(
-          0
-        )}ms | Cycle: ${this.options.cycleDuration}ms | Progress: ${(
-          timeOfDay * 100
-        ).toFixed(1)}%`;
-      }
-    }
-
-    // Cancel any existing animation frame before requesting a new one
-    if (this.animationFrameId) {
-      cancelAnimationFrame(this.animationFrameId);
+      // Update scene elements based on time of day
+      this.updatePhases(timeOfDay);
+      this.updateCelestialBodies(timeOfDay);
+      this.updateClock(timeOfDay);
+      this.updateClouds();
+      this.updateWindowLights(timeOfDay);
+    } catch (error) {
+      // Catch any errors to prevent page crashes
+      console.error("Error in animation loop:", error);
     }
     
-    // Request next frame
+    // Request next frame - do this outside try/catch to ensure animation continues
     this.animationFrameId = requestAnimationFrame(() => this.animate());
+    
+    // Set a flag to indicate animation is running
+    this.animationRunning = true;
   }
-
-  cleanup() {
-    log("Cleaning up CityScene");
+  
+  // Add a failsafe to check if animation is running
+  checkAnimationStatus() {
+    log("Checking animation status...");
     
-    // Stop animation
-    this.isPlaying = false;
-    
-    // Cancel any pending animation frame
-    if (this.animationFrameId) {
-      cancelAnimationFrame(this.animationFrameId);
-      this.animationFrameId = null;
-    }
-    
-    // Remove all event listeners
-    if (this.eventHandlers.visibilityChange) {
-      document.removeEventListener("visibilitychange", this.eventHandlers.visibilityChange);
-      this.eventHandlers.visibilityChange = null;
-    }
-    
-    if (this.playPauseBtn && this.eventHandlers.playPauseClick) {
-      this.playPauseBtn.removeEventListener("click", this.eventHandlers.playPauseClick);
-      this.eventHandlers.playPauseClick = null;
-    }
-    
-    if (this.resetBtn && this.eventHandlers.resetClick) {
-      this.resetBtn.removeEventListener("click", this.eventHandlers.resetClick);
-      this.eventHandlers.resetClick = null;
-    }
-    
-    if (this.speedSlider && this.eventHandlers.speedChange) {
-      this.speedSlider.removeEventListener("input", this.eventHandlers.speedChange);
-      this.eventHandlers.speedChange = null;
-    }
-    
-    if (this.clockToggleBtn && this.eventHandlers.clockToggle) {
-      this.clockToggleBtn.removeEventListener("click", this.eventHandlers.clockToggle);
-      this.eventHandlers.clockToggle = null;
-    }
-    
-    if (this.eventHandlers.resize) {
-      window.removeEventListener("resize", this.eventHandlers.resize);
-      this.eventHandlers.resize = null;
-    }
-    
-    // Clear event handler references
-    this.eventHandlers = {
-      visibilityChange: null,
-      playPauseClick: null,
-      resetClick: null,
-      speedChange: null,
-      clockToggle: null,
-      resize: null
-    };
-    
-    // Remove all clouds
-    if (this.cloudContainer) {
-      while (this.cloudContainer.firstChild) {
-        this.cloudContainer.removeChild(this.cloudContainer.firstChild);
+    // If animation should be running but isn't, restart it
+    if (this.isPlaying && !this.animationRunning) {
+      log("Animation appears to be stalled, restarting...");
+      
+      // Cancel any existing animation frame
+      if (this.animationFrameId) {
+        cancelAnimationFrame(this.animationFrameId);
       }
+      
+      // Restart animation
+      this.animationFrameId = requestAnimationFrame(() => this.animate());
     }
-    this.clouds = [];
-    
-    // Reset state
-    this.isInitialized = false;
-    this.loadingComplete = false;
-    this.startTime = null;
-    this.pausedAt = null;
-    this.lastPhase = null;
-    
-    log("CityScene cleanup complete");
   }
 
   pauseAnimation() {
@@ -1233,17 +1488,10 @@ class CityScene {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
-
+    
     // Pause all celestial animations
-    if (this.sun) {
-      // Pause sun animation
-      this.sun.style.animationPlayState = "paused";
-    }
-
-    if (this.moon) {
-      // Pause moon animation
-      this.moon.style.animationPlayState = "paused";
-    }
+    this.sun.style.animationPlayState = "paused";
+    this.moon.style.animationPlayState = "paused";
 
     // Pause UFO animation if present
     const ufo = document.querySelector(".ufo");
@@ -1273,15 +1521,8 @@ class CityScene {
     }
 
     // Resume celestial animations
-    if (this.sun) {
-      // Resume sun animation
-      this.sun.style.animationPlayState = "running";
-    }
-
-    if (this.moon) {
-      // Resume moon animation
-      this.moon.style.animationPlayState = "running";
-    }
+    this.sun.style.animationPlayState = "running";
+    this.moon.style.animationPlayState = "running";
 
     // Resume UFO animation
     const ufo = document.querySelector(".ufo");
