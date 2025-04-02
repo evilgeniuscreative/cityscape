@@ -1,0 +1,25 @@
+{
+  "name": "citylights",
+  "version": "1.0.0",
+  "description": "CSS and Javascript based cityscape",
+  "main": "index.html",
+  "scripts": {
+    "start": "lsof -i :8000 | grep LISTEN | awk '{print $2}' | xargs kill -9 && (python3 -m http.server 8000 & open http://localhost:8000)"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/evilgeniuscreative/cityscape.git"
+  },
+  "keywords": [
+    "CSS",
+    "design",
+    "design",
+    "ux"
+  ],
+  "author": "Ian Kleinfeld",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/evilgeniuscreative/cityscape/issues"
+  },
+  "homepage": "https://github.com/evilgeniuscreative/cityscape#readme"
+}

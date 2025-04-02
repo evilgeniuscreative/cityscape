@@ -19,7 +19,21 @@ let activeScene = null;
 // Initialize on page load
 document.addEventListener("DOMContentLoaded", () => {
   log("Document loaded, initializing scene");
-  initScene();
+  
+  // Ensure any previous instance is cleaned up
+  if (activeScene) {
+    log("Cleaning up previous scene instance");
+    activeScene.cleanup();
+    activeScene = null;
+  }
+  
+  // Create new scene instance
+  try {
+    activeScene = new CityScene();
+    log("Scene initialized successfully");
+  } catch (error) {
+    console.error("Error initializing scene:", error);
+  }
 });
 
 // Core initialization function
@@ -100,12 +114,13 @@ class CityScene {
     // Clock elements
     this.clockDisplay = document.getElementById("clock");
     this.digitalClock = document.getElementById("digital-clock");
-    this.hourHand = document.querySelector(".hour-hand");
-    this.minuteHand = document.querySelector(".minute-hand");
+    this.analogClock = document.getElementById("analog-clock");
+    this.hourHand = this.analogClock.querySelector(".hour-hand");
+    this.minuteHand = this.analogClock.querySelector(".minute-hand");
     
     // Controls
-    this.clockToggleBtn = document.getElementById("toggle-clock");
-    this.playPauseBtn = document.getElementById("play-pause");
+    this.clockToggleBtn = document.getElementById("toggleClock");
+    this.playPauseBtn = document.getElementById("playPause");
     this.resetBtn = document.getElementById("reset");
     this.speedSlider = document.getElementById("speed-slider");
 
@@ -237,11 +252,23 @@ class CityScene {
 
     // Clock toggle handler
     if (this.clockToggleBtn) {
+      const digitalClock = document.getElementById("digital-clock");
+      const analogClock = document.getElementById("analog-clock");
+      
       this.eventHandlers.clockToggle = () => {
-        if (this.clockDisplay) {
-          this.isClockVisible = !this.isClockVisible;
-          this.clockDisplay.style.display = this.isClockVisible ? "block" : "none";
-          this.clockToggleBtn.textContent = this.isClockVisible ? "Hide Clock" : "Show Clock";
+        // Toggle between analog and digital clock
+        if (digitalClock && analogClock) {
+          if (digitalClock.classList.contains("active")) {
+            // Switch to analog
+            digitalClock.classList.remove("active");
+            analogClock.classList.add("active");
+            this.clockToggleBtn.classList.add("active");
+          } else {
+            // Switch to digital
+            digitalClock.classList.add("active");
+            analogClock.classList.remove("active");
+            this.clockToggleBtn.classList.remove("active");
+          }
         }
       };
       this.clockToggleBtn.addEventListener("click", this.eventHandlers.clockToggle);
@@ -1137,26 +1164,32 @@ class CityScene {
     // Remove all event listeners
     if (this.eventHandlers.visibilityChange) {
       document.removeEventListener("visibilitychange", this.eventHandlers.visibilityChange);
+      this.eventHandlers.visibilityChange = null;
     }
     
     if (this.playPauseBtn && this.eventHandlers.playPauseClick) {
       this.playPauseBtn.removeEventListener("click", this.eventHandlers.playPauseClick);
+      this.eventHandlers.playPauseClick = null;
     }
     
     if (this.resetBtn && this.eventHandlers.resetClick) {
       this.resetBtn.removeEventListener("click", this.eventHandlers.resetClick);
+      this.eventHandlers.resetClick = null;
     }
     
     if (this.speedSlider && this.eventHandlers.speedChange) {
       this.speedSlider.removeEventListener("input", this.eventHandlers.speedChange);
+      this.eventHandlers.speedChange = null;
     }
     
     if (this.clockToggleBtn && this.eventHandlers.clockToggle) {
       this.clockToggleBtn.removeEventListener("click", this.eventHandlers.clockToggle);
+      this.eventHandlers.clockToggle = null;
     }
     
     if (this.eventHandlers.resize) {
       window.removeEventListener("resize", this.eventHandlers.resize);
+      this.eventHandlers.resize = null;
     }
     
     // Clear event handler references

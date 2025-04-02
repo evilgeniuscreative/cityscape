@@ -94,11 +94,8 @@ body {
   border-radius: 5px;
   text-align: center;
   display: none;
-  width: 250px;
+  width: 260px;
   height: 50px;
-  position: absolute;
-  top: 45px;
-  z-index: 10;
 }
 
 #digital-clock.active {
@@ -115,7 +112,7 @@ body {
   right: 45px;
   display: none;
   z-index: 10;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.9);
 }
 
 #analog-clock.active {
@@ -684,6 +681,8 @@ body {
   display: flex;
   flex-direction: row;
   gap: 10px;
+  width: 520px;
+  align-items: baseline;
 }
 
 button {
@@ -839,7 +838,7 @@ button:hover {
 
 .speed-control {
   border-radius: 10px;
-  transform: translateX(-50%);
+  transform: translateX(-10%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -873,18 +872,25 @@ button:hover {
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
 }
 
-#toggleClock {
-  width: 30px;
+.clocks {
+  padding-right: 44px;
+}
+#toggleClock,
+#playPause {
+  width: 120px;
   height: 30px;
-  border-radius: 50%;
+  border-radius: 4px;
   background: #fff;
-  position: absolute;
-  top: 10px;
-  right: 10px;
   cursor: pointer;
   z-index: 11;
   border: 1px solid #ccc;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+#analog-clock {
+  border: 1px solid var(--border-color);
+  right: 94px;
+  top: 75px;
 }
 
 #toggleClock.active {
@@ -895,27 +901,28 @@ button:hover {
   background: #f5f5f5;
 }
 
-#digital-clock {
-  position: absolute;
-  top: 50px;
-  right: 50px;
-  font-size: 24px;
-  color: #fff;
-  background: rgba(0, 0, 0, 0.5);
-  padding: 10px 15px;
-  border-radius: 5px;
-  z-index: 10;
-  display: none;
+#playPause {
+  right: 130px;
 }
 
-#digital-clock.active {
-  display: block;
+#playPause:hover {
+  background: #f5f5f5;
 }
 
 .controls {
   display: flex;
   gap: 10px;
   margin-top: 10px;
+}
+
+.controls.top {
+  flex-direction: column;
+  align-items: center;
+}
+
+.controls.bottom {
+  flex-direction: row;
+  align-items: space-between;
 }
 
 .controls button {
