@@ -115,6 +115,7 @@ class CityScene {
     this.speedSlider = null;
     this.speedDisplay = null;
     this.lampLights = null;
+    this.lampDowns = null;
     this.nightLayer = null;
     this.dayLayer = null;
 
@@ -189,7 +190,7 @@ class CityScene {
     // Set initialization complete immediately to prevent getting stuck
     this.isInitialized = true;
     this.loadingComplete = true;
-    
+
     // Make sure we're not in pause mode
     this.isPlaying = true;
 
@@ -214,7 +215,7 @@ class CityScene {
     this.setupClouds();
     this.createStreetlamps();
     this.ufoRandomMovement();
-    
+
     // Trigger airplane movement
     this.airplaneMovement();
   }
@@ -663,6 +664,10 @@ class CityScene {
 
     const spacing = 150; // Fixed spacing of 150px
     const lampCount = Math.ceil(window.innerWidth / spacing);
+    
+    // Store references to lamp lights and lamp downs for later updates
+    this.lampLights = [];
+    this.lampDowns = [];
 
     for (let i = 0; i <= lampCount; i++) {
       const lamp = document.createElement("div");
@@ -679,6 +684,10 @@ class CityScene {
       lamp.appendChild(down);
 
       this.cityscape.appendChild(lamp);
+      
+      // Store references
+      this.lampLights.push(light);
+      this.lampDowns.push(down);
     }
   }
 
@@ -965,16 +974,16 @@ class CityScene {
 
       // Get all sky layers
       const skyLayers = {
-        dawn: document.querySelector('.sky-layer.dawn'),
-        day: document.querySelector('.sky-layer.day'),
-        dusk: document.querySelector('.sky-layer.dusk'),
-        night: document.querySelector('.sky-layer.night')
+        dawn: document.querySelector(".sky-layer.dawn"),
+        day: document.querySelector(".sky-layer.day"),
+        dusk: document.querySelector(".sky-layer.dusk"),
+        night: document.querySelector(".sky-layer.night"),
       };
 
       // Reset all layers to hidden first
-      Object.values(skyLayers).forEach(layer => {
+      Object.values(skyLayers).forEach((layer) => {
         if (layer) {
-          layer.classList.add('hidden');
+          layer.classList.add("hidden");
           layer.style.opacity = 0;
         }
       });
@@ -984,13 +993,13 @@ class CityScene {
         // Dawn: 5am-7am
         currentPhase = "dawn";
         if (skyLayers.dawn) {
-          skyLayers.dawn.classList.remove('hidden');
+          skyLayers.dawn.classList.remove("hidden");
           skyLayers.dawn.style.opacity = 1;
-          
+
           // Gradually show day behind dawn as we approach 7am
           const progress = (currentTime - 5) / 2; // 0 to 1 over 2 hours
           if (skyLayers.day) {
-            skyLayers.day.classList.remove('hidden');
+            skyLayers.day.classList.remove("hidden");
             skyLayers.day.style.opacity = progress;
           }
         }
@@ -998,20 +1007,20 @@ class CityScene {
         // Day: 7am-6pm
         currentPhase = "day";
         if (skyLayers.day) {
-          skyLayers.day.classList.remove('hidden');
+          skyLayers.day.classList.remove("hidden");
           skyLayers.day.style.opacity = 1;
         }
       } else if (currentTime >= 18 && currentTime < 20) {
         // Dusk: 6pm-8pm
         currentPhase = "dusk";
         if (skyLayers.dusk) {
-          skyLayers.dusk.classList.remove('hidden');
+          skyLayers.dusk.classList.remove("hidden");
           skyLayers.dusk.style.opacity = 1;
-          
+
           // Gradually show night behind dusk as we approach 8pm
           const progress = (currentTime - 18) / 2; // 0 to 1 over 2 hours
           if (skyLayers.night) {
-            skyLayers.night.classList.remove('hidden');
+            skyLayers.night.classList.remove("hidden");
             skyLayers.night.style.opacity = progress;
           }
         }
@@ -1019,27 +1028,34 @@ class CityScene {
         // Night: 8pm-5am
         currentPhase = "night";
         if (skyLayers.night) {
-          skyLayers.night.classList.remove('hidden');
+          skyLayers.night.classList.remove("hidden");
           skyLayers.night.style.opacity = 1;
         }
       }
 
       // Update lamp lights based on time of day
       if (this.lampLights && this.lampLights.length > 0) {
-        this.lampLights.forEach((light) => {
-          // Keep streetlamps on at night, dusk, and until 8am
-          if (
-            currentPhase === "night" ||
-            currentPhase === "dusk" ||
-            (currentPhase === "dawn" && currentTime < 8)
-          ) {
-            light.classList.add("night");
+        for (let i = 0; i < this.lampLights.length; i++) {
+          const light = this.lampLights[i];
+          const down = this.lampDowns[i];
+          
+          // Turn on streetlamps at dusk and night, turn off during day
+          if (currentPhase === "night" || currentPhase === "dusk") {
             light.classList.remove("day");
+            light.classList.add("night");
+            
+            if (down) {
+              down.classList.add("night");
+            }
           } else {
-            light.classList.add("day");
             light.classList.remove("night");
+            light.classList.add("day");
+            
+            if (down) {
+              down.classList.remove("night");
+            }
           }
-        });
+        }
       }
 
       // Update window lights based on time of day
@@ -1249,10 +1265,8 @@ class CityScene {
     const x = startX + progress * (endX - startX);
 
     // Calculate vertical position using a parabola with the equation: y = a(x-h)^2 + k
-    // Where (h,k) is the vertex of the parabola
-
-    // We want the vertex to be at the center of the screen horizontally (h = viewportWidth/2)
-    // and at y=10px vertically (k = 10)
+    // Where (h,k) is the vertex (0.5, 0.05) and a = 4
+    // This creates a parabola that opens upward with its lowest point at 5% from the top
     const h = viewportWidth / 2;
     const k = 10; // Apex at 10px from top
 
@@ -1665,11 +1679,19 @@ class CityScene {
         if (progress < 0.5) {
           // First half: dark blue to purple
           const adjustedProgress = progress * 2; // Scale 0-0.5 to 0-1
-          dawnColor = this.interpolateColor("#1a1a2e", "#d88ae3", adjustedProgress);
+          dawnColor = this.interpolateColor(
+            "#1a1a2e",
+            "#d88ae3",
+            adjustedProgress
+          );
         } else {
           // Second half: purple to light blue
           const adjustedProgress = (progress - 0.5) * 2; // Scale 0.5-1 to 0-1
-          dawnColor = this.interpolateColor("#d88ae3", "#87ceeb", adjustedProgress);
+          dawnColor = this.interpolateColor(
+            "#d88ae3",
+            "#87ceeb",
+            adjustedProgress
+          );
         }
 
         sceneContainer.style.background = dawnColor;
@@ -1683,11 +1705,19 @@ class CityScene {
         if (progress < 0.5) {
           // First half: light blue to purple
           const adjustedProgress = progress * 2; // Scale 0-0.5 to 0-1
-          duskColor = this.interpolateColor("#87ceeb", "#d88ae3", adjustedProgress);
+          duskColor = this.interpolateColor(
+            "#87ceeb",
+            "#d88ae3",
+            adjustedProgress
+          );
         } else {
           // Second half: purple to dark blue
           const adjustedProgress = (progress - 0.5) * 2; // Scale 0.5-1 to 0-1
-          duskColor = this.interpolateColor("#d88ae3", "#0f0c29", adjustedProgress);
+          duskColor = this.interpolateColor(
+            "#d88ae3",
+            "#0f0c29",
+            adjustedProgress
+          );
         }
 
         sceneContainer.style.background = duskColor;
