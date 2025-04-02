@@ -10,6 +10,7 @@
     <!-- Loading spinner -->
     <div id="loading-overlay">
       <div class="spinner"></div>
+      <div class="loading-text">Initializing...</div>
     </div>
 
     <div id="scene-container">
@@ -28,13 +29,14 @@
           <div class="moon-crater"></div>
         </div>
         <div id="clouds"></div>
+        <div class="airplane"></div>
         <div class="ufo">
           <div class="bubble">
             <img src="./img/alien.png" />
           </div>
           <div class="ufolights">
             <div class="ufolight"></div>
-            <!-- <div class="ufolight ufoyellow"></div> -->
+            <div class="ufolight ufoyellow"></div>
             <div class="ufolight"></div>
           </div>
         </div>
@@ -50,7 +52,7 @@
               type="range"
               id="speedSlider"
               min="10000"
-              max="600000"
+              max="60000"
               value="30000"
               step="1000"
             />
