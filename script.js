@@ -417,6 +417,11 @@ class CityScene {
         for (let w = 0; w < windowsPerFloor; w++) {
           const window = document.createElement("div");
           window.className = "window";
+          
+          // Assign a random transition class to each window
+          const transitionClass = `window-transition-${Math.floor(Math.random() * 6) + 1}`;
+          window.classList.add(transitionClass);
+          
           // Windows start unlit - our updateWindowLights method will handle lighting
           floorDiv.appendChild(window);
         }
@@ -974,249 +979,101 @@ class CityScene {
   }
 
   updateWindowLights(timeOfDay) {
-    // Convert timeOfDay (0-1) to hours (0-24)
-    const hourOfDay = timeOfDay * 24;
-    
-    // Only update window lighting occasionally to improve performance
+    // Only update window lights every 500ms to reduce CPU usage
     const now = Date.now();
-    if (!this.lastWindowUpdate || now - this.lastWindowUpdate > 500) { 
-      this.lastWindowUpdate = now;
+    if (now - this.lastWindowUpdate < 500) {
+      return;
+    }
+    this.lastWindowUpdate = now;
+
+    try {
+      // Convert time of day to hours (0-24)
+      const hours = timeOfDay * 24;
       
-      // Log window lighting status occasionally
-      if (DEBUG && Math.random() < 0.01) {
-        log(`Window lighting update - Hour of day: ${hourOfDay.toFixed(2)}`);
+      // Get all windows
+      const buildingWindows = document.querySelectorAll(".building .window");
+      const houseWindows = document.querySelectorAll(".house .window");
+      
+      // Determine the percentage of windows that should be lit based on time
+      let litPercentage = 0;
+      
+      // Early morning (5am-7am): 0-10%
+      if (hours >= 5 && hours < 7) {
+        litPercentage = 0.1;
+      }
+      // Day (7am-5pm): 0-5%
+      else if (hours >= 7 && hours < 17) {
+        litPercentage = 0.05;
+      }
+      // Evening (5pm-7pm): 40-80%
+      else if (hours >= 17 && hours < 19) {
+        // Scale from 40% at 5pm to 80% at 7pm
+        litPercentage = 0.4 + (0.4 * ((hours - 17) / 2));
+      }
+      // Night (7pm-11pm): 60-30%
+      else if (hours >= 19 && hours < 23) {
+        // Scale from 80% at 7pm down to 30% at 11pm
+        litPercentage = 0.8 - (0.5 * ((hours - 19) / 4));
+      }
+      // Late night (11pm-5am): 30-0%
+      else {
+        // Scale from 30% at 11pm down to 0% at 5am
+        if (hours >= 23) {
+          litPercentage = 0.3 * (1 - ((hours - 23) / 6));
+        } else {
+          litPercentage = 0.3 * (1 - ((hours + 1) / 6));
+        }
       }
       
-      try {
-        // TURNING LIGHTS ON: Only between 5pm-7pm (with small chance for outliers until 1am)
-        if (hourOfDay >= 17 && hourOfDay < 25) {
-          // Check if enough real time has passed since last group of lights turned on (10 seconds)
-          const realSecondsBetweenGroups = 10000; // 10 real seconds
-          const canTurnOnNewGroup = !this.lastWindowGroupOn || (now - this.lastWindowGroupOn > realSecondsBetweenGroups);
-          
-          if (canTurnOnNewGroup) {
-            // Determine if this is a time when lights should turn on
-            let turnOnProbability;
-            
-            if (hourOfDay >= 17 && hourOfDay < 19) {
-              // 5pm-7pm: High probability (90% of lights turn on during this period)
-              turnOnProbability = 0.4; // High chance during peak hours
-            } else {
-              // 7pm-1am: Low probability (10% of lights are outliers)
-              turnOnProbability = 0.02; // Very low chance for outliers
-            }
-            
-            // Random chance to turn on a group of lights
-            if (Math.random() < turnOnProbability) {
-              // Get all available windows (not already on or off) - limit DOM queries
-              const houses = Array.from(document.querySelectorAll(".house")).slice(0, 10); // Limit to 10 houses
-              const buildingWindows = document.querySelectorAll(".building .window");
-              
-              // Track windows we'll turn on in this group
-              const windowsToTurnOn = [];
-              
-              // Process house windows - ALL house windows should come on between 5-7pm
-              if (hourOfDay >= 17 && hourOfDay < 19) {
-                for (let i = 0; i < houses.length; i++) {
-                  const house = houses[i];
-                  const leftWindow = house.querySelector(".house-window-left");
-                  const rightWindow = house.querySelector(".house-window-right");
-                  
-                  // Only consider windows that aren't already on or off
-                  if (leftWindow && !this.windowsOn.has(leftWindow) && !this.windowsOff.has(leftWindow)) {
-                    windowsToTurnOn.push(leftWindow);
-                  }
-                  
-                  if (rightWindow && !this.windowsOn.has(rightWindow) && !this.windowsOff.has(rightWindow)) {
-                    windowsToTurnOn.push(rightWindow);
-                  }
-                }
-              }
-              
-              // Process building windows - at least 40% should come on between 5-7pm
-              // Increase to 40-80% maximum that can be on in total (more lights as evening approaches)
-              const buildingWindowsArray = Array.from(buildingWindows);
-              const minBuildingWindowsOn = Math.floor(buildingWindowsArray.length * 0.4); // At least 40%
-              const maxBuildingWindowsOn = Math.floor(buildingWindowsArray.length * (Math.random() * 0.4 + 0.4)); // 40-80% max
-              const targetBuildingWindowsOn = Math.max(minBuildingWindowsOn, maxBuildingWindowsOn);
-              
-              const currentBuildingWindowsOn = Array.from(this.windowsOn).filter(w => 
-                w.classList.contains('window') && !w.classList.contains('house-window-left') && !w.classList.contains('house-window-right')
-              ).length;
-              
-              // Only turn on more building windows if we haven't reached the target
-              if (currentBuildingWindowsOn < targetBuildingWindowsOn) {
-                // How many more can we turn on
-                const remainingAllowed = targetBuildingWindowsOn - currentBuildingWindowsOn;
-                
-                // Get building windows that aren't already on or off - use a more efficient approach
-                const availableBuildingWindows = [];
-                const maxToCheck = Math.min(buildingWindowsArray.length, 100); // Limit how many we check
-                
-                for (let i = 0; i < maxToCheck; i++) {
-                  const window = buildingWindowsArray[Math.floor(Math.random() * buildingWindowsArray.length)];
-                  if (window && !this.windowsOn.has(window) && !this.windowsOff.has(window)) {
-                    availableBuildingWindows.push(window);
-                    if (availableBuildingWindows.length >= remainingAllowed) {
-                      break; // We have enough
-                    }
-                  }
-                }
-                
-                // Take a random subset to turn on
-                const selectedBuildingWindows = availableBuildingWindows.slice(0, Math.min(Math.floor(Math.random() * 15) + 5, remainingAllowed));
-                
-                // Add selected building windows to the turn-on list
-                windowsToTurnOn.push(...selectedBuildingWindows);
-              }
-              
-              // If we have windows to turn on, do it and update tracking
-              if (windowsToTurnOn.length > 0) {
-                // Turn on all windows in this group
-                for (let i = 0; i < windowsToTurnOn.length; i++) {
-                  const window = windowsToTurnOn[i];
-                  window.classList.add('lit');
-                  this.windowsOn.add(window);
-                }
-                
-                // Update timestamp for when this group was turned on
-                this.lastWindowGroupOn = now;
-                
-                if (DEBUG && Math.random() < 0.1) {
-                  log(`Turned ON ${windowsToTurnOn.length} windows at hour ${hourOfDay.toFixed(2)}`);
-                }
-              }
-            }
-          }
-        }
+      // Calculate how many windows should be lit
+      const totalBuildingWindows = buildingWindows.length;
+      const targetLitCount = Math.floor(totalBuildingWindows * litPercentage);
+      
+      // Count currently lit windows
+      const currentlyLitWindows = document.querySelectorAll(".building .window.lit").length;
+      
+      // If we need to turn on more windows
+      if (currentlyLitWindows < targetLitCount) {
+        // Get all unlit windows
+        const unlitWindows = Array.from(buildingWindows).filter(w => !w.classList.contains('lit'));
         
-        // TURNING LIGHTS OFF: Process windows that are on to see if they should turn off
-        // Turn off in small groups with at least 0.3 seconds between groups
-        if (hourOfDay >= 20 && hourOfDay < 25) {
-          // Get all windows that are currently on
-          const litWindows = Array.from(this.windowsOn);
-          
-          // Check if enough time has passed since last window group turned off
-          const lastWindowOffTime = this.lastWindowOffTime || 0;
-          const timeSinceLastOff = now - lastWindowOffTime;
-          const minTimeBetweenOffs = 300; // At least 0.3 seconds between groups
-          
-          if (litWindows.length > 0 && timeSinceLastOff > minTimeBetweenOffs) {
-            // Calculate probability of turning off based on time
-            let turnOffProbability;
-            
-            if (hourOfDay < 22) {
-              // 8pm-10pm: Low probability
-              turnOffProbability = 0.2;
-            } else if (hourOfDay < 24) {
-              // 10pm-12am: Medium probability
-              turnOffProbability = 0.4;
-            } else {
-              // 12am-1am: High probability
-              turnOffProbability = 0.6;
-            }
-            
-            // Random chance to turn off a group
-            if (Math.random() < turnOffProbability) {
-              // Turn off a small group of windows (1-10) - reduced from 15 for performance
-              const maxGroupSize = Math.min(litWindows.length, Math.floor(Math.random() * 10) + 1);
-              const windowsToTurnOff = [];
-              
-              // Select random windows to turn off
-              for (let i = 0; i < maxGroupSize; i++) {
-                const randomIndex = Math.floor(Math.random() * litWindows.length);
-                if (litWindows[randomIndex]) {
-                  windowsToTurnOff.push(litWindows[randomIndex]);
-                  litWindows.splice(randomIndex, 1); // Remove from array to avoid duplicates
-                }
-              }
-              
-              // Turn off this group
-              for (let i = 0; i < windowsToTurnOff.length; i++) {
-                const window = windowsToTurnOff[i];
-                window.classList.remove('lit');
-                this.windowsOn.delete(window);
-                this.windowsOff.add(window); // Remember this window has been turned off
-              }
-              
-              // Update timestamp for when this group was turned off
-              this.lastWindowOffTime = now;
-              
-              if (DEBUG && Math.random() < 0.05) {
-                log(`Turned OFF ${windowsToTurnOff.length} windows at hour ${hourOfDay.toFixed(2)}`);
-              }
-            }
-          }
-        }
+        // Shuffle array to randomize which windows get turned on
+        this.shuffleArray(unlitWindows);
         
-        // FORCE ALL LIGHTS OFF at 1am, but in small groups
-        if (hourOfDay >= 25 || (hourOfDay >= 1 && hourOfDay < 7)) {
-          const litWindows = Array.from(this.windowsOn);
-          
-          // Check if enough time has passed since last window group turned off
-          const lastWindowOffTime = this.lastWindowOffTime || 0;
-          const timeSinceLastOff = now - lastWindowOffTime;
-          const minTimeBetweenOffs = 300; // At least 0.3 seconds between groups
-          
-          if (litWindows.length > 0 && timeSinceLastOff > minTimeBetweenOffs) {
-            // Turn off a small group of windows (1-10) - reduced from 15 for performance
-            const maxGroupSize = Math.min(litWindows.length, Math.floor(Math.random() * 10) + 1);
-            const windowsToTurnOff = [];
-            
-            // Select random windows to turn off
-            for (let i = 0; i < maxGroupSize; i++) {
-              const randomIndex = Math.floor(Math.random() * litWindows.length);
-              if (litWindows[randomIndex]) {
-                windowsToTurnOff.push(litWindows[randomIndex]);
-                litWindows.splice(randomIndex, 1); // Remove from array to avoid duplicates
-              }
-            }
-            
-            // Turn off this group
-            for (let i = 0; i < windowsToTurnOff.length; i++) {
-              const window = windowsToTurnOff[i];
-              window.classList.remove('lit');
-              this.windowsOn.delete(window);
-              this.windowsOff.add(window);
-            }
-            
-            // Update timestamp for when this group was turned off
-            this.lastWindowOffTime = now;
-            
-            if (DEBUG && Math.random() < 0.05) {
-              log(`Forced ${windowsToTurnOff.length} windows off at hour ${hourOfDay.toFixed(2)}, ${this.windowsOn.size} remaining`);
-            }
-          }
-        }
-        
-        // RESET for next day cycle
-        if (hourOfDay >= 7 && hourOfDay < 17) {
-          // During daytime, reset tracking for the next night
-          if (hourOfDay >= 7 && hourOfDay < 7.1) {
-            this.windowsOff.clear();
-            this.windowsOn.clear();
-            this.lastWindowGroupOn = null;
-            this.lastWindowOffTime = null;
-            
-            // Turn off any windows that might still be lit - limit DOM operations
-            const litWindows = document.querySelectorAll('.window.lit, .house-window-left.lit, .house-window-right.lit');
-            const maxToProcess = Math.min(litWindows.length, 50); // Process in batches
-            
-            for (let i = 0; i < maxToProcess; i++) {
-              if (litWindows[i]) {
-                litWindows[i].classList.remove('lit');
-              }
-            }
-            
-            if (DEBUG && Math.random() < 0.5) {
-              log(`Reset window tracking for new day at hour ${hourOfDay.toFixed(2)}`);
-            }
-          }
-        }
-      } catch (error) {
-        // Catch any errors to prevent page crashes
-        console.error("Error in updateWindowLights:", error);
+        // Turn on enough windows to reach target
+        const windowsToLight = unlitWindows.slice(0, targetLitCount - currentlyLitWindows);
+        windowsToLight.forEach(window => {
+          window.classList.add('lit');
+        });
       }
+      // If we need to turn off windows
+      else if (currentlyLitWindows > targetLitCount) {
+        // Get all lit windows
+        const litWindows = Array.from(buildingWindows).filter(w => w.classList.contains('lit'));
+        
+        // Shuffle array to randomize which windows get turned off
+        this.shuffleArray(litWindows);
+        
+        // Turn off enough windows to reach target
+        const windowsToTurnOff = litWindows.slice(0, currentlyLitWindows - targetLitCount);
+        windowsToTurnOff.forEach(window => {
+          window.classList.remove('lit');
+        });
+      }
+      
+      // Handle house windows separately - simpler logic
+      houseWindows.forEach(window => {
+        // Houses have lights on during evening and night (5pm-11pm)
+        const shouldBeLit = hours >= 17 && hours < 23;
+        
+        if (shouldBeLit && !window.classList.contains('lit')) {
+          window.classList.add('lit');
+        } else if (!shouldBeLit && window.classList.contains('lit')) {
+          window.classList.remove('lit');
+        }
+      });
+    } catch (error) {
+      console.error("Error updating window lights:", error);
     }
   }
 
@@ -1549,5 +1406,12 @@ class CityScene {
     // Set isPlaying to true and restart animation
     this.isPlaying = true;
     this.animate();
+  }
+
+  shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
   }
 }

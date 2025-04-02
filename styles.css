@@ -1058,3 +1058,28 @@ body.loading #controls,
 body.loading #clock {
   visibility: hidden !important;
 }
+
+/* Window transition classes with different timing */
+.window-transition-1 {
+  transition: background-color 1s ease, background-image 1s ease, box-shadow 1s ease;
+}
+
+.window-transition-2 {
+  transition: background-color 2s ease, background-image 2s ease, box-shadow 2s ease;
+}
+
+.window-transition-3 {
+  transition: background-color 3s ease, background-image 3s ease, box-shadow 3s ease;
+}
+
+.window-transition-4 {
+  transition: background-color 4s ease, background-image 4s ease, box-shadow 4s ease;
+}
+
+.window-transition-5 {
+  transition: background-color 5s ease, background-image 5s ease, box-shadow 5s ease;
+}
+
+.window-transition-6 {
+  transition: background-color 6s ease, background-image 6s ease, box-shadow 6s ease;
+}
