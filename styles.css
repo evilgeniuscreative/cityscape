@@ -321,69 +321,51 @@ body {
   transition: opacity 10s ease-in-out;
 }
 
+@keyframes goLeft {
+  0% {
+    transform: translateX(120vw);
+  }
+  100% {
+    transform: translateX(-120vw);
+  }
+}
+
+@keyframes goRight {
+  0% {
+    transform: translateX(-120vw);
+  }
+  100% {
+    transform: translateX(120vw);
+  }
+}
+
 .airplane {
   position: absolute;
   top: -100px;
-  width: 100px;
-  height: 25px;
-  background-image: url("./img/airplane.png");
+  left: -150px;
+  width: 160px;
+  height: 65px;
+
   z-index: 12;
 }
 
 .airplane.goLeft {
-  left: -150px;
-  transition: left 5s linear;
+  background-image: url("./img/airplaneL.png");
+  animation: goLeft 7s linear;
 }
 
 .airplane.goRight {
-  right: -150px;
-  transition: right 5s linear;
+    background-image: url("./img/airplaneR.png");
+  animation: goRight 7s linear;
 }
 
 .airplane.stopFlying {
   top: -150px;
-  left: 50%;
+  left: -150px;
+  animation: none;
 }
 
-.ufo {
-  position: absolute;
-  top: 50px;
-  left: 50%;
-  width: 100px;
-  height: 25px;
-  background: #c0c0c0;
-  border-radius: 90% / 70%;
-  box-shadow: 0 5px 20px rgba(255, 255, 255, 0.3);
-  animation: hover 3s infinite ease-in-out,
-    wobble 0.5s infinite ease-in-out alternate, drift 15s infinite linear;
-  transform-origin: center;
-  z-index: 6;
-}
-
-.ufo.up {
-  top: -25px;
-  transition: top 3s ease-in-out;
-}
-
-.ufo.down {
-  top: 250px;
-  transition: top 3s ease-in-out;
-}
-
-.ufo.zoomOffRight {
-  left: auto;
-  right: -110%;
-  transition: right 3s linear;
-}
-
-.ufo.zoomOffLeft {
-  left: -110%;
-  transition: left 3s linear;
-}
-
-.ufo.fadeIn {
-  animation: fadeIn 1s ease-in-out;
-}
+/* UFO */
 
 @keyframes fadeIn {
   0% {
@@ -448,6 +430,93 @@ body {
   }
 }
 
+/* New wrapper for UFO */
+.ufo-wrap {
+  position: relative;
+  width: 120px;
+  height: 30px;
+  top: 50px;
+  left: 50%;
+  z-index: 6;
+  transition: top 3s ease-in-out, left 3s ease-in-out, right 3s ease-in-out,
+    opacity 1s ease-in-out;
+}
+
+.ufo {
+  position: absolute;
+  top: 5px;
+  left: 10px;
+  width: 100px;
+  height: 25px;
+  background: #c0c0c0;
+  border-radius: 90% / 70%;
+  box-shadow: 0 5px 20px rgba(255, 255, 255, 0.3);
+  /* animation: hover 3s infinite ease-in-out, 
+   wobble 0.5s infinite ease-in-out alternate; */
+  /* transform-origin: center; */
+  z-index: 7;
+  /* transition: top 3s ease-in-out, left 3s ease-in-out, right 3s ease-in-out; */
+}
+
+/* Add a class for horizontal movement */
+.ufo-wrap.drifting {
+  /* animation: drift 15s infinite linear; */
+}
+
+.ufo-wrap.up {
+  top: 15px;
+  transition: top 3s ease-in-out;
+}
+
+.ufo-wrap.down {
+  top: 250px;
+  transition: top 3s ease-in-out;
+}
+
+.ufo-wrap.up .ufo,
+.ufo-wrap.down .ufo {
+  transition: top 3s ease-in-out;
+}
+
+.ufo-wrap.diagonalUpRight {
+  top: 15px;
+  left: 90%;
+  transition: top 3s ease-in-out, left 3s ease-in-out;
+}
+
+.ufo-wrap.diagonalDownRight {
+  top: 250px;
+  left: 90%;
+  transition: top 3s ease-in-out, left 3s ease-in-out;
+}
+
+.ufo-wrap.diagonalUpLeft {
+  top: 15px;
+  left: 10%;
+  transition: top 3s ease-in-out, left 3s ease-in-out;
+}
+
+.ufo-wrap.diagonalDownLeft {
+  top: 250px;
+  left: 10%;
+  transition: top 3s ease-in-out, left 3s ease-in-out;
+}
+
+.ufo-wrap.zoomOffRight {
+  left: auto;
+  right: -110%;
+  transition: right 3s linear;
+}
+
+.ufo-wrap.zoomOffLeft {
+  left: -110%;
+  transition: left 3s linear;
+}
+
+.ufo-wrap.fadeIn {
+  animation: fadeIn 1s ease-in-out;
+}
+
 .bubble {
   position: absolute;
   top: -14px;
@@ -470,43 +539,48 @@ body {
 }
 
 .ufolights {
-  position: absolute;
-  bottom: 5px;
+  position: relative;
+  bottom: -5px;
   left: 50%;
   width: 160px;
   height: 15px;
   display: flex;
   justify-content: space-around;
   transform: translateX(-50%);
+  z-index: 5;
 }
 
 .ufolight {
+  position: absolute;
+  bottom: 5px;
   width: 15px;
   height: 15px;
-  background: #ff0000;
   border-radius: 50%;
-  box-shadow: 0 0 10px #ff0000;
+  animation: blink 1s ease-in-out infinite;
 }
 
-.ufolight:nth-child(1) {
-  animation: blink 1s ease-in-out infinite;
+.ufolight.redlight {
   animation-delay: 0s;
+  background: #ff0000;
+  box-shadow: 0 0 10px #ff0000;
+  left: 3px;
+  bottom: 5px;
 }
-/* .ufolight:nth-child(2) {
-    background: #FFFF00;
-    box-shadow: 0 0 10px #FFFF00;
-    animation-delay: 0.5s;
 
-}
-.ufolight.ufoyellow{
-    bottom: -5px!important;
-} */
-
-.ufolight:nth-child(2) {
-  animation: blink 1s ease-in-out infinite;
+.ufolight.greenlight {
   background: #008000;
   box-shadow: 0 0 10px #008000;
-  animation-delay: 0.5s;
+  animation-delay: 0.75s;
+  transform: translateY(70%);
+  left: 52px;
+  bottom: 4px;
+}
+
+.ufolight.yellowlight {
+  background: #ffeb3b;
+  box-shadow: 0 0 10px #bec107;
+  animation-delay: 1.5s;
+  left: 102px;
 }
 
 @keyframes blink {
@@ -645,8 +719,8 @@ body {
 .house-window-left,
 .house-window-right {
   position: absolute;
-  width: 15px;
-  height: 20px;
+  width: 20px;
+  height: 40px;
   background: linear-gradient(45deg, #b9e1ff 0%, #1c6ea4 100%);
   transition: background-color 0.3s ease, background-image 0.3s ease,
     box-shadow 0.3s ease;
@@ -654,12 +728,12 @@ body {
 
 .house-window-left {
   left: 10px;
-  bottom: 20px;
+  bottom: 30px;
 }
 
 .house-window-right {
   right: 10px;
-  bottom: 20px;
+  bottom: 30px;
 }
 
 .scene-night .house-window-left.lit,
@@ -704,7 +778,7 @@ body {
   height: 20px;
   background: #ffd700;
   border-radius: 50%;
-  box-shadow: 0 0 20px #ffd700;
+  /* box-shadow: 0 0 20px #ffd700; */
   transition: all 0.5s ease;
 }
 
@@ -1103,10 +1177,13 @@ button:hover {
   align-items: center;
   z-index: 9999;
   transition: opacity 0.5s ease;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 #loading-overlay.hidden {
   opacity: 0;
+  pointer-events: none;
 }
 
 .spinner {

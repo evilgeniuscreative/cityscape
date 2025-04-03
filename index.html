@@ -7,8 +7,8 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <!-- Loading spinner -->
-    <div id="loading-overlay">
+    <!-- Loading spinner - hidden by default -->
+    <div id="loading-overlay" style="display: none">
       <div class="spinner"></div>
       <div class="loading-text">Initializing...</div>
     </div>
@@ -30,15 +30,14 @@
         </div>
         <div id="clouds"></div>
         <div class="airplane"></div>
-        <div class="ufo">
+        <div class="ufo-wrap">
+          <div class="ufo"></div>
           <div class="bubble">
             <img src="./img/alien.png" />
           </div>
-          <div class="ufolights">
-            <div class="ufolight"></div>
-            <div class="ufolight ufoyellow"></div>
-            <div class="ufolight"></div>
-          </div>
+          <div class="ufolight redlight"></div>
+          <div class="ufolight greenlight"></div>
+          <div class="ufolight yellowlight"></div>
         </div>
       </div>
       <div id="cityscape">
