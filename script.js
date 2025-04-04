@@ -20,20 +20,36 @@ let activeScene = null;
 document.addEventListener("DOMContentLoaded", () => {
   log("Document loaded, initializing scene");
 
+  // Show loading overlay immediately
+  const loadingOverlay = document.getElementById("loading-overlay");
+  if (loadingOverlay) {
+    loadingOverlay.style.display = "flex";
+  }
+
   // Ensure any previous instance is cleaned up
   if (activeScene) {
     log("Cleaning up previous scene instance");
-    activeScene.cleanup();
+    try {
+      activeScene.cleanup();
+    } catch (error) {
+      console.error("Error cleaning up scene:", error);
+    }
     activeScene = null;
   }
 
-  // Create new scene instance
-  try {
-    activeScene = new CityScene();
-    log("Scene initialized successfully");
-  } catch (error) {
-    console.error("Error initializing scene:", error);
-  }
+  // Create new scene instance with a delay to ensure DOM is fully ready
+  setTimeout(() => {
+    try {
+      activeScene = new CityScene();
+      log("Scene initialized successfully");
+    } catch (error) {
+      console.error("Error initializing scene:", error);
+      // Hide loading overlay if there was an error
+      if (loadingOverlay) {
+        loadingOverlay.style.display = "none";
+      }
+    }
+  }, 300);
 });
 
 // Core initialization function
@@ -156,9 +172,12 @@ class CityScene {
     // Get references to DOM elements
     this.loadingOverlay = document.getElementById("loading-overlay");
 
-    // Keep loading overlay hidden
+    // Show loading overlay initially, will be hidden after initialization completes
     if (this.loadingOverlay) {
-      this.loadingOverlay.style.display = "none";
+      this.loadingOverlay.style.display = "flex";
+      if (this.loadingText) {
+        this.loadingText.textContent = "Initializing...";
+      }
     }
 
     this.loadingText = this.loadingOverlay
@@ -211,47 +230,102 @@ class CityScene {
     // Use a small timeout to ensure DOM is fully ready
     setTimeout(() => {
       this.initializeSequentially();
-    }, 100);
-
-    // Start UFO random movement
-    this.ufoMovementInterval = setInterval(() => {
-      if (this.isPlaying && this.ufo) {
-        this.ufoRandomMovement();
-      }
-    }, 1000 + Math.random() * 2000); // Change UFO movement every 1-4 seconds
+    }, 300);
   }
 
   initializeSequentially() {
-    // Log the initialization progress
-    log("Sequential initialization started");
+    try {
+      // Log the initialization progress
+      log("Sequential initialization started");
 
-    // Set initialization complete immediately to prevent getting stuck
-    this.isInitialized = true;
-    this.loadingComplete = true;
-
-    // Make sure we're not in pause mode
-    this.isPlaying = true;
-
-    // Start at 5:30am (5.5/24 = 0.23 of the day)
-    const startTimeOffset = 0.23 * this.options.cycleDuration;
-    this.startTime = Date.now() - startTimeOffset;
-
-    // Setup components in the background
-    this.setupStars();
-    this.setupCelestialBodies();
-    this.createBuildings();
-    this.createHouses();
-    this.setupClouds();
-    this.createStreetlamps();
-
-    // Start the animation loop
-    this.animate();
-
-    // Trigger airplane movement
-    this.airplaneMovement();
-
-    // Trigger initial UFO movement
-    this.ufoRandomMovement();
+      // Update loading text if available
+      if (this.loadingText) {
+        this.loadingText.textContent = "Setting up stars...";
+      }
+      
+      // Setup stars first
+      this.setupStars();
+      
+      // Update loading text
+      if (this.loadingText) {
+        this.loadingText.textContent = "Setting up sun and moon...";
+      }
+      
+      // Setup celestial bodies
+      this.setupCelestialBodies();
+      
+      // Update loading text
+      if (this.loadingText) {
+        this.loadingText.textContent = "Building the city...";
+      }
+      
+      // Create buildings with a small delay to prevent browser freezing
+      setTimeout(() => {
+        this.createBuildings();
+        this.createHouses();
+        
+        // Update loading text
+        if (this.loadingText) {
+          this.loadingText.textContent = "Adding final touches...";
+        }
+        
+        // Add remaining elements
+        this.setupClouds();
+        this.createStreetlamps();
+        
+        // Make sure we're not in pause mode
+        this.isPlaying = true;
+        
+        // Start at 5:30am (5.5/24 = 0.23 of the day)
+        const startTimeOffset = 0.23 * this.options.cycleDuration;
+        this.startTime = Date.now() - startTimeOffset;
+        
+        // Update loading text
+        if (this.loadingText) {
+          this.loadingText.textContent = "Starting animation...";
+        }
+        
+        // Set initialization complete
+        this.isInitialized = true;
+        this.loadingComplete = true;
+        
+        // Force an initial update of all visual elements before starting animation
+        const timeOfDay = (Date.now() - this.startTime) % this.options.cycleDuration / this.options.cycleDuration;
+        this.updatePhases(timeOfDay);
+        this.updateCelestialBodies(timeOfDay);
+        this.updateClock(timeOfDay);
+        this.updateWindowLights(timeOfDay);
+        
+        // Start the animation loop
+        this.animate();
+        
+        // Trigger airplane movement
+        this.airplaneMovement();
+        
+        // Trigger initial UFO movement
+        this.ufoRandomMovement();
+        
+        // Start UFO random movement interval
+        this.ufoMovementInterval = setInterval(() => {
+          if (this.isPlaying && this.ufo) {
+            this.ufoRandomMovement();
+          }
+        }, 1000 + Math.random() * 2000); // Change UFO movement every 1-4 seconds
+        
+        // Hide loading overlay now that everything is initialized
+        if (this.loadingOverlay) {
+          setTimeout(() => {
+            this.loadingOverlay.style.display = "none";
+          }, 500); // Small delay to ensure everything is rendered
+        }
+      }, 100);
+    } catch (error) {
+      console.error("Error during initialization:", error);
+      // Hide loading overlay even if there was an error
+      if (this.loadingOverlay) {
+        this.loadingOverlay.style.display = "none";
+      }
+    }
   }
 
   // New method to reset animation to beginning of cycle
@@ -1574,6 +1648,10 @@ class CityScene {
   startAnimation() {
     log(`startAnimation called, isPlaying: ${this.isPlaying}`);
 
+    if (this.isPlaying) {
+      return;
+    }
+
     // Reset animation state
     this.isPlaying = true;
     this.startTime = Date.now();
@@ -1803,6 +1881,12 @@ class CityScene {
     // Calculate viewport dimensions
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
+    
+    // Determine if we should keep the UFO in the upper half (90% chance)
+    const keepInUpperHalf = Math.random() < 0.9;
+    
+    // Calculate max vertical position based on whether to keep in upper half
+    const maxVerticalPosition = keepInUpperHalf ? viewportHeight * 0.5 : viewportHeight - 100;
 
     // Temporarily disable transitions
     this.ufoWrap.style.transition = "none";
@@ -1835,7 +1919,7 @@ class CityScene {
           console.log("UFO moving up");
           break;
         case 1: // Down
-          newTop = Math.min(viewportHeight - 100, currentTop + 200);
+          newTop = Math.min(maxVerticalPosition, currentTop + 200);
           newLeft = currentLeft;
           console.log("UFO moving down");
           break;
@@ -1845,7 +1929,7 @@ class CityScene {
           console.log("UFO moving diagonal up right");
           break;
         case 3: // Diagonal down right
-          newTop = Math.min(viewportHeight - 100, currentTop + 150);
+          newTop = Math.min(maxVerticalPosition, currentTop + 150);
           newLeft = Math.min(viewportWidth - 150, currentLeft + 200);
           console.log("UFO moving diagonal down right");
           break;
@@ -1855,7 +1939,7 @@ class CityScene {
           console.log("UFO moving diagonal up left");
           break;
         case 5: // Diagonal down left
-          newTop = Math.min(viewportHeight - 100, currentTop + 150);
+          newTop = Math.min(maxVerticalPosition, currentTop + 150);
           newLeft = Math.max(50, currentLeft - 200);
           console.log("UFO moving diagonal down left");
           break;
@@ -1878,7 +1962,6 @@ class CityScene {
     }, 20);
   }
 
-  // Handle UFO when it reaches the top
   handleUfoAtTop() {
     // Pause animations
     this.ufoWrap.classList.remove("drifting");
@@ -1892,7 +1975,6 @@ class CityScene {
       // After it's invisible, reset its position
       setTimeout(() => {
         // Remove up class but keep transition property
-        this.ufoWrap.style.transition = "none";
         this.ufoWrap.classList.remove("up");
 
         // Set a random horizontal position
@@ -1931,45 +2013,45 @@ class CityScene {
   }
 
   // Schedule UFO to return after zooming off
-  scheduleUfoReturn() {
-    setTimeout(() => {
-      // Make UFO invisible
-      this.ufoWrap.style.opacity = "0";
+  // scheduleUfoReturn() {
+  //   setTimeout(() => {
+  //     // Make UFO invisible
+  //     this.ufoWrap.style.opacity = "0";
 
-      // After it's invisible, reset its position
-      setTimeout(() => {
-        // Store current vertical position
-        const currentTop = this.ufoWrap.getBoundingClientRect().top;
+  //     // After it's invisible, reset its position
+  //     setTimeout(() => {
+  //       // Store current vertical position
+  //       const currentTop = this.ufoWrap.getBoundingClientRect().top;
 
-        // Disable transitions temporarily
-        this.ufoWrap.style.transition = "none";
+  //       // Disable transitions temporarily
+  //       this.ufoWrap.style.transition = "none";
 
-        // Remove zoom classes
-        this.ufoWrap.classList.remove("zoomOffRight", "zoomOffLeft");
+  //       // Remove zoom classes
+  //       this.ufoWrap.classList.remove("zoomOffRight", "zoomOffLeft");
 
-        // Set a random horizontal position
-        const randomLeft = Math.random() * 80 + 10;
-        this.ufoWrap.style.left = `${randomLeft}%`;
-        this.ufoWrap.style.right = "";
+  //       // Set a random horizontal position
+  //       const randomLeft = Math.random() * 80 + 10;
+  //       this.ufoWrap.style.left = `${randomLeft}%`;
+  //       this.ufoWrap.style.right = "";
 
-        // Maintain vertical position
-        if (currentTop > 0) {
-          this.ufoWrap.style.top = `${currentTop}px`;
-        }
+  //       // Maintain vertical position
+  //       if (currentTop > 0) {
+  //         this.ufoWrap.style.top = `${currentTop}px`;
+  //       }
 
-        // Force reflow to ensure the style changes take effect
-        void this.ufoWrap.offsetWidth;
+  //       // Force reflow to ensure the style changes take effect
+  //       void this.ufoWrap.offsetWidth;
 
-        // Make it visible and resume drifting
-        setTimeout(() => {
-          // Restore transitions before making visible
-          this.ufoWrap.style.transition = "";
-          this.ufoWrap.style.opacity = "1";
-          this.ufoWrap.classList.add("drifting");
-        }, 100);
-      }, 500);
-    }, 3000);
-  }
+  //       // Make it visible and resume drifting
+  //       setTimeout(() => {
+  //         // Restore transitions before making visible
+  //         this.ufoWrap.style.transition = "";
+  //         this.ufoWrap.style.opacity = "1";
+  //         this.ufoWrap.classList.add("drifting");
+  //       }, 100);
+  //     }, 500);
+  //   }, 3000);
+  // }
 
   shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) {
@@ -2054,7 +2136,7 @@ class CityScene {
     // Reset airplane position
     if (this.airplane) {
       this.airplane.classList.remove("goLeft", "goRight");
-      this.airplane.style.top = 100 + Math.random() * 300 + "px";
+      this.airplane.style.top = `${100 + Math.random() * 300}px`;
     }
 
     // Randomly choose direction
@@ -2074,5 +2156,63 @@ class CityScene {
     setTimeout(() => {
       this.airplaneMovement();
     }, 5000 + Math.random() * 15000);
+  }
+
+  // Add a cleanup method to properly dispose of resources
+  cleanup() {
+    log("Cleaning up CityScene resources");
+    
+    try {
+      // Cancel any pending animations
+      if (this.animationFrameId) {
+        cancelAnimationFrame(this.animationFrameId);
+        this.animationFrameId = null;
+      }
+      
+      // Clear any intervals
+      if (this.ufoMovementInterval) {
+        clearInterval(this.ufoMovementInterval);
+        this.ufoMovementInterval = null;
+      }
+      
+      // Remove event listeners
+      if (this.eventHandlers.visibilityChange) {
+        document.removeEventListener("visibilitychange", this.eventHandlers.visibilityChange);
+      }
+      
+      if (this.eventHandlers.playPauseClick && this.playPauseBtn) {
+        this.playPauseBtn.removeEventListener("click", this.eventHandlers.playPauseClick);
+      }
+      
+      if (this.eventHandlers.resetClick && this.resetBtn) {
+        this.resetBtn.removeEventListener("click", this.eventHandlers.resetClick);
+      }
+      
+      if (this.eventHandlers.speedChange && this.speedSlider) {
+        this.speedSlider.removeEventListener("input", this.eventHandlers.speedChange);
+      }
+      
+      if (this.eventHandlers.clockToggle && this.clockToggleBtn) {
+        this.clockToggleBtn.removeEventListener("click", this.eventHandlers.clockToggle);
+      }
+      
+      if (this.eventHandlers.resize) {
+        window.removeEventListener("resize", this.eventHandlers.resize);
+      }
+      
+      // Reset state
+      this.isPlaying = false;
+      this.isInitialized = false;
+      this.loadingComplete = false;
+      
+      // Hide loading overlay if it's visible
+      if (this.loadingOverlay) {
+        this.loadingOverlay.style.display = "none";
+      }
+    } catch (error) {
+      console.error("Error during cleanup:", error);
+    }
+    
+    log("CityScene cleanup complete");
   }
 }
