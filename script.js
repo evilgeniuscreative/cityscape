@@ -1,6 +1,7 @@
 // Configuration
 const CYCLE_DURATION = 120000; // Milliseconds for one 24-hour cycle (2 minutes)
 const DEBUG = true; // Enable/disable debug logging
+const INIT_TIMEOUT = 30000; // 30 second timeout for initialization
 
 // Helper for debug logging
 function log(message) {
@@ -12,6 +13,142 @@ function log(message) {
     // Silently fail if console is not available
   }
 }
+
+function setLoadingText(text) {
+  if (this.loadingText) {
+    this.loadingText.textContent = text;
+    // Log loading steps to help with debugging
+    log(`Loading step: ${text}`);
+  }
+}
+
+(function setupErrorHandling() {
+  const errorLog = document.getElementById("error-log");
+  const errorSidebar = document.getElementById("error-sidebar");
+  const showErrorsBtn = document.getElementById("show-errors");
+  const clearErrorsBtn = document.getElementById("clear-errors");
+  const toggleSidebarBtn = document.getElementById("toggle-sidebar");
+
+  if (errorLog && errorSidebar && showErrorsBtn) {
+    // Show error sidebar initially during development
+    errorSidebar.style.display = "block";
+
+    // Original console.error
+    const originalConsoleError = console.error;
+
+    // Override console.error to capture errors
+    console.error = function () {
+      // Call original console.error
+      originalConsoleError.apply(console, arguments);
+
+      // Format error message
+      const errorMsg = Array.from(arguments)
+        .map((arg) => {
+          if (arg instanceof Error) {
+            return `${arg.name}: ${arg.message}\n${arg.stack}`;
+          }
+          return typeof arg === "object"
+            ? JSON.stringify(arg, null, 2)
+            : String(arg);
+        })
+        .join(" ");
+
+      // Add to error log
+      const errorEntry = document.createElement("div");
+      errorEntry.className = "error-entry";
+      errorEntry.innerHTML = `<hr><p><strong>${new Date().toLocaleTimeString()}</strong>: ${errorMsg}</p>`;
+      errorLog.appendChild(errorEntry);
+
+      // Show sidebar and button
+      errorSidebar.style.display = "block";
+      showErrorsBtn.style.display = "none";
+    };
+
+    // Handle window errors
+    window.addEventListener("error", function (event) {
+      console.error(
+        `Error: ${event.message} at ${event.filename}:${event.lineno}:${event.colno}`
+      );
+      event.preventDefault();
+    });
+
+    // Handle unhandled promise rejections
+    window.addEventListener("unhandledrejection", function (event) {
+      console.error("Unhandled Promise Rejection:", event.reason);
+    });
+
+    // Button event handlers
+    if (clearErrorsBtn) {
+      clearErrorsBtn.addEventListener("click", function () {
+        errorLog.innerHTML = "";
+      });
+    }
+
+    if (toggleSidebarBtn) {
+      toggleSidebarBtn.addEventListener("click", function () {
+        errorSidebar.style.display = "none";
+        showErrorsBtn.style.display = "block";
+      });
+    }
+
+    if (showErrorsBtn) {
+      showErrorsBtn.addEventListener("click", function () {
+        errorSidebar.style.display = "block";
+        showErrorsBtn.style.display = "none";
+      });
+    }
+  }
+})();
+
+// Add initialization monitoring
+function monitorInitialization() {
+  // Store the last loading message
+  let lastLoadingMessage = "";
+  let lastChangeTime = Date.now();
+  
+  // Check every second if loading is stuck
+  const monitorInterval = setInterval(() => {
+    const loadingText = document.querySelector(".loading-text");
+    if (!loadingText) {
+      clearInterval(monitorInterval);
+      return;
+    }
+    
+    const currentMessage = loadingText.textContent;
+    
+    // If loading overlay is not visible, stop monitoring
+    const loadingOverlay = document.getElementById("loading-overlay");
+    if (loadingOverlay && loadingOverlay.style.display === "none") {
+      clearInterval(monitorInterval);
+      return;
+    }
+    
+    // If message hasn't changed in 10 seconds, might be stuck
+    if (currentMessage === lastLoadingMessage) {
+      const timeSinceChange = Date.now() - lastChangeTime;
+      if (timeSinceChange > 10000) { // 10 seconds
+        console.warn(`Loading appears stuck at "${currentMessage}" for ${Math.round(timeSinceChange/1000)} seconds`);
+        
+        // After 15 seconds of being stuck, show emergency button
+        if (timeSinceChange > 15000) {
+          const emergencyBtn = document.getElementById("emergency-refresh");
+          if (emergencyBtn) {
+            emergencyBtn.classList.add("visible");
+            loadingText.textContent = `Stuck at: ${currentMessage}. Consider refreshing.`;
+          }
+        }
+      }
+    } else {
+      // Message changed, reset timer
+      lastLoadingMessage = currentMessage;
+      lastChangeTime = Date.now();
+    }
+  }, 1000);
+  
+  return monitorInterval;
+}
+
+monitorInitialization();
 
 // Track active instance
 let activeScene = null;
@@ -175,9 +312,7 @@ class CityScene {
     // Show loading overlay initially, will be hidden after initialization completes
     if (this.loadingOverlay) {
       this.loadingOverlay.style.display = "flex";
-      if (this.loadingText) {
-        this.loadingText.textContent = "Initializing...";
-      }
+      setLoadingText("Initializing...");
     }
 
     this.loadingText = this.loadingOverlay
@@ -238,92 +373,118 @@ class CityScene {
       // Log the initialization progress
       log("Sequential initialization started");
 
+      // Set a timeout to prevent infinite loading
+      const initTimeoutId = setTimeout(() => {
+        log("Initialization timeout reached - forcing refresh option");
+        const emergencyBtn = document.getElementById("emergency-refresh");
+        if (emergencyBtn) {
+          emergencyBtn.classList.add("visible");
+          setLoadingText("Loading taking too long. Consider refreshing.");
+        }
+      }, INIT_TIMEOUT);
+
       // Update loading text if available
-      if (this.loadingText) {
-        this.loadingText.textContent = "Setting up stars...";
-      }
-      
+      setLoadingText("Setting up stars...");
+
       // Setup stars first
       this.setupStars();
-      
+
       // Update loading text
-      if (this.loadingText) {
-        this.loadingText.textContent = "Setting up sun and moon...";
-      }
-      
+      setLoadingText("Setting up sun and moon...");
+
       // Setup celestial bodies
       this.setupCelestialBodies();
-      
-      // Update loading text
-      if (this.loadingText) {
-        this.loadingText.textContent = "Building the city...";
-      }
-      
+
       // Create buildings with a small delay to prevent browser freezing
       setTimeout(() => {
-        this.createBuildings();
-        this.createHouses();
-        
-        // Update loading text
-        if (this.loadingText) {
-          this.loadingText.textContent = "Adding final touches...";
-        }
-        
-        // Add remaining elements
-        this.setupClouds();
-        this.createStreetlamps();
-        
-        // Make sure we're not in pause mode
-        this.isPlaying = true;
-        
-        // Start at 5:30am (5.5/24 = 0.23 of the day)
-        const startTimeOffset = 0.23 * this.options.cycleDuration;
-        this.startTime = Date.now() - startTimeOffset;
-        
-        // Update loading text
-        if (this.loadingText) {
-          this.loadingText.textContent = "Starting animation...";
-        }
-        
-        // Set initialization complete
-        this.isInitialized = true;
-        this.loadingComplete = true;
-        
-        // Force an initial update of all visual elements before starting animation
-        const timeOfDay = (Date.now() - this.startTime) % this.options.cycleDuration / this.options.cycleDuration;
-        this.updatePhases(timeOfDay);
-        this.updateCelestialBodies(timeOfDay);
-        this.updateClock(timeOfDay);
-        this.updateWindowLights(timeOfDay);
-        
-        // Start the animation loop
-        this.animate();
-        
-        // Trigger airplane movement
-        this.airplaneMovement();
-        
-        // Trigger initial UFO movement
-        this.ufoRandomMovement();
-        
-        // Start UFO random movement interval
-        this.ufoMovementInterval = setInterval(() => {
-          if (this.isPlaying && this.ufo) {
-            this.ufoRandomMovement();
+        try {
+          // Update loading text
+          setLoadingText("Building the buildings...");
+          this.createBuildings();
+
+          setLoadingText("Building the houses...");
+
+          this.createHouses();
+
+          // Update loading text
+          setLoadingText("Adding final touches...");
+
+          // Add remaining elements
+          // Update loading text
+          setLoadingText("Setting up clouds...");
+          this.setupClouds();
+          // Update loading text
+          setLoadingText("Building street lamps...");
+          this.createStreetlamps();
+
+          // Make sure we're not in pause mode
+          this.isPlaying = true;
+
+          // Start at 5:30am (5.5/24 = 0.23 of the day)
+          const startTimeOffset = 0.23 * this.options.cycleDuration;
+          this.startTime = Date.now() - startTimeOffset;
+
+          // Update loading text
+          setLoadingText("Finish Initializing, updating phases...");
+
+          // Set initialization complete
+          this.isInitialized = true;
+          this.loadingComplete = true;
+
+          // Force an initial update of all visual elements before starting animation
+          const timeOfDay =
+            ((Date.now() - this.startTime) % this.options.cycleDuration) /
+            this.options.cycleDuration;
+          this.updatePhases(timeOfDay);
+          this.updateCelestialBodies(timeOfDay);
+          this.updateClock(timeOfDay);
+          this.updateWindowLights(timeOfDay);
+
+          // Update loading text
+          setLoadingText("Starting animation...");
+
+          // Start the animation loop
+          this.animate();
+
+          // Trigger airplane movement
+          this.airplaneMovement();
+
+          // Trigger initial UFO movement
+          this.ufoRandomMovement();
+
+          // Start UFO random movement interval
+          this.ufoMovementInterval = setInterval(() => {
+            if (this.isPlaying && this.ufo) {
+              this.ufoRandomMovement();
+            }
+          }, 1000 + Math.random() * 2000); // Change UFO movement every 1-4 seconds
+
+          // Clear the initialization timeout since we've completed successfully
+          clearTimeout(initTimeoutId);
+
+          // Hide loading overlay now that everything is initialized
+          if (this.loadingOverlay) {
+            setTimeout(() => {
+              this.loadingOverlay.style.display = "none";
+            }, 500);
           }
-        }, 1000 + Math.random() * 2000); // Change UFO movement every 1-4 seconds
-        
-        // Hide loading overlay now that everything is initialized
-        if (this.loadingOverlay) {
-          setTimeout(() => {
-            this.loadingOverlay.style.display = "none";
-          }, 500); // Small delay to ensure everything is rendered
+        } catch (error) {
+          console.error("Error during second phase of initialization:", error);
+          // Make emergency button visible
+          const emergencyBtn = document.getElementById("emergency-refresh");
+          if (emergencyBtn) {
+            emergencyBtn.classList.add("visible");
+            setLoadingText("Error during initialization. Please refresh.");
+          }
         }
-      }, 100);
+      }, 300);
     } catch (error) {
-      console.error("Error during initialization:", error);
-      // Hide loading overlay even if there was an error
-      if (this.loadingOverlay) {
-        this.loadingOverlay.style.display = "none";
+      console.error("Error during first phase of initialization:", error);
+      // Make emergency button visible
+      const emergencyBtn = document.getElementById("emergency-refresh");
+      if (emergencyBtn) {
+        emergencyBtn.classList.add("visible");
+        setLoadingText("Error during initialization. Please refresh.");
       }
     }
   }
@@ -487,6 +648,16 @@ class CityScene {
       }
     };
     window.addEventListener("resize", this.eventHandlers.resize);
+
+    // Emergency refresh button handler
+    const emergencyRefreshBtn = document.getElementById("emergency-refresh");
+    if (emergencyRefreshBtn) {
+      emergencyRefreshBtn.addEventListener("click", () => {
+        log("Emergency refresh triggered");
+        this.cleanup();
+        initScene();
+      });
+    }
   }
 
   initializeElements() {
@@ -539,106 +710,96 @@ class CityScene {
   }
 
   createBuildings() {
-    // Clear existing buildings
-    const existingBuildings = this.cityscape.querySelectorAll(".building");
-    existingBuildings.forEach((building) => building.remove());
-
-    // Reset window objects array for building windows
-    this.windowObjects = this.windowObjects.filter((w) => !w.building);
-
-    const buildingCount = Math.floor(Math.random() * 10) + 8; // 10-18 buildings
-    const containerWidth = window.innerWidth;
-    const minSpacing = 100; // Minimum space between buildings
-
-    // Create array of x positions
-    const positions = [];
-    for (let i = 0; i < buildingCount; i++) {
-      let x;
-      do {
-        x = Math.random() * (containerWidth - 150); // 150px is max building width
-      } while (positions.some((pos) => Math.abs(pos - x) < minSpacing));
-      positions.push(x);
+    // Get the cityscape element
+    const cityscape = document.getElementById("cityscape");
+    if (!cityscape) {
+      console.error("Cityscape element not found");
+      return;
     }
 
-    positions.forEach((x, i) => {
-      const building = document.createElement("div");
-      building.className = "building";
-
-      // Random height between 100 and 500 pixels
-      const height = Math.random() * 400 + 100;
-      building.style.height = `${height}px`;
-
-      // Random width between 100 and 150 pixels
-      const width = Math.random() * 50 + 100;
-      building.style.width = `${width}px`;
-
-      // Position building
-      building.style.left = `${x}px`;
-
-      // Random z-index between 1 and 10 (buildings always behind houses)
-      building.style.zIndex = Math.floor(Math.random() * 10) + 1;
-
-      // Create window container for flex layout
-      const windowContainer = document.createElement("div");
-      windowContainer.className = "window-container";
-      building.appendChild(windowContainer);
-
-      // Calculate number of floors and windows based on building dimensions
-      const buildingPadding = 15;
-      const windowHeight = 35;
-      const windowWidth = 25;
-      const windowGap = 6;
-
-      // Calculate available space for windows
-      const availableHeight = height - buildingPadding * 2;
-      const availableWidth = width - buildingPadding * 2;
-
-      // Calculate number of floors and windows that will fit
-      const floorHeight = windowHeight + windowGap;
-      const floors = Math.floor(availableHeight / floorHeight);
-      const windowsPerFloor = Math.floor(
-        (availableWidth + windowGap) / (windowWidth + windowGap)
-      );
-
-      // Create floors and windows
-      for (let floor = 0; floor < floors; floor++) {
-        const floorDiv = document.createElement("div");
-        floorDiv.className = "floor";
-
-        for (let w = 0; w < windowsPerFloor; w++) {
-          const window = document.createElement("div");
-          window.className = "window";
-
-          // Assign a random transition class to each window
-          const transitionClass = `window-transition-${
-            Math.floor(Math.random() * 6) + 1
-          }`;
-          window.classList.add(transitionClass);
-
-          // Create window object for state tracking
-          const windowId = `window-${this.windowObjects.length}`;
-          window.dataset.windowId = windowId;
-
-          // Add to window objects array
-          this.windowObjects.push({
-            id: windowId,
-            element: window,
-            state: "off",
-            hasBeenOn: false,
-            building: true, // true for building, false for house
-            floor: floor,
-            position: w,
-          });
-
-          // Windows start unlit - our updateWindowLights method will handle lighting
-          floorDiv.appendChild(window);
-        }
-
-        windowContainer.appendChild(floorDiv);
-      }
-
-      this.cityscape.appendChild(building);
+    // Clear existing buildings
+    const existingBuildings = document.querySelectorAll(".building");
+    existingBuildings.forEach((building) => {
+      building.remove();
     });
+
+    // Create buildings in batches
+    const buildingCount = this.options.buildingCount;
+    const batchSize = 5; // Process buildings in smaller batches
+    const fragment = document.createDocumentFragment();
+
+    const createBuildingsBatch = (startIdx, endIdx) => {
+      for (let i = startIdx; i < endIdx && i < buildingCount; i++) {
+        try {
+          // Create building element
+          const building = document.createElement("div");
+          building.className = "building";
+
+          // Random width (50px to 100px)
+          const width = Math.floor(Math.random() * 50) + 50;
+          building.style.width = width + "px";
+
+          // Random height (150px to 300px)
+          const height = Math.floor(Math.random() * 150) + 150;
+          building.style.height = height + "px";
+
+          // Random position
+          building.style.left = Math.floor(Math.random() * 90) + "%";
+
+          // Create floors
+          const floorCount = Math.floor(height / 30);
+          for (let j = 0; j < floorCount; j++) {
+            const floor = document.createElement("div");
+            floor.className = "floor";
+
+            // Create windows for this floor
+            const windowCount = Math.floor(width / 20);
+            for (let k = 0; k < windowCount; k++) {
+              const window = document.createElement("div");
+              window.className = "window";
+              
+              // Add to window tracking with a 70% chance of being active
+              if (Math.random() < 0.7) {
+                // Store window object with proper properties
+                this.windowObjects.push({
+                  element: window,
+                  state: "off",
+                  hasBeenOn: false,
+                  building: true
+                });
+              }
+              
+              floor.appendChild(window);
+            }
+            
+            building.appendChild(floor);
+          }
+          
+          // Add to fragment
+          fragment.appendChild(building);
+        } catch (error) {
+          console.error(`Error creating building ${i}:`, error);
+          // Continue with next building
+        }
+      }
+      
+      // If we have more buildings to process, schedule next batch
+      if (endIdx < buildingCount) {
+        setTimeout(() => {
+          createBuildingsBatch(endIdx, endIdx + batchSize);
+        }, 0);
+      } else {
+        // All buildings created, append fragment to cityscape
+        cityscape.appendChild(fragment);
+        log("Buildings created");
+        
+        // Update loading text
+        setLoadingText("Buildings created successfully");
+      }
+    };
+    
+    // Start creating buildings in batches
+    createBuildingsBatch(0, batchSize);
   }
 
   createHouses() {
@@ -799,7 +960,8 @@ class CityScene {
 
   setupCelestialBodies() {
     log("Setting up celestial bodies");
-
+    // Update loading text
+    setLoadingText("setupCelestialBodies()...");
     // Check if elements exist
     if (!this.sun) {
       this.sun = document.getElementById("sun");
@@ -807,6 +969,8 @@ class CityScene {
         log("ERROR: Sun element not found");
         return;
       }
+      // Update loading text
+      setLoadingText("setupCelestialBodies() loaded Sun.");
     }
 
     if (!this.moon) {
@@ -815,6 +979,7 @@ class CityScene {
         log("ERROR: Moon element not found");
         return;
       }
+      setLoadingText("setupCelestialBodies() loaded Moon.");
     }
 
     // Ensure they have proper styling
@@ -828,40 +993,77 @@ class CityScene {
         crater.className = "moon-crater";
         this.moon.appendChild(crater);
       }
+      setLoadingText("setupCelestialBodies() Setup Moon Craters.");
     }
 
     log("Celestial bodies setup complete");
   }
 
   setupStars() {
-    // Make sure the star container exists
-    if (!this.starContainer) {
-      this.starContainer = document.getElementById("stars");
+    // Update loading text
+    setLoadingText("setupStars()...");
+    
+    try {
+      // Make sure the star container exists
       if (!this.starContainer) {
-        console.error("Star container not found");
-        return; // Exit if we can't find the star container
+        this.starContainer = document.getElementById("stars");
+        if (!this.starContainer) {
+          console.error("Star container not found");
+          return; // Exit if we can't find the star container
+        }
       }
-    }
 
-    // Clear existing stars
-    while (this.starContainer.firstChild) {
-      this.starContainer.removeChild(this.starContainer.firstChild);
-    }
+      // Clear existing stars
+      while (this.starContainer.firstChild) {
+        this.starContainer.removeChild(this.starContainer.firstChild);
+      }
 
-    // Create random stars
-    const starCount = Math.floor(Math.random() * 50) + 100; // 100-150 stars
-    for (let i = 0; i < starCount; i++) {
-      const star = document.createElement("div");
-      star.className =
-        "star " + ["small", "medium", "large"][Math.floor(Math.random() * 3)];
-      star.style.left = Math.random() * 100 + "%";
-      star.style.top = Math.random() * 70 + "%"; // Keep stars in upper 70% of sky
-      star.style.animationDelay = Math.random() * 2 + "s";
-      this.starContainer.appendChild(star);
+      // Create random stars - use a more efficient approach with batching
+      const starCount = Math.floor(Math.random() * 50) + 100; // 100-150 stars
+      const batchSize = 20; // Process stars in smaller batches
+      const fragment = document.createDocumentFragment(); // Use fragment for better performance
+      
+      const createStarsBatch = (startIdx, endIdx) => {
+        for (let i = startIdx; i < endIdx && i < starCount; i++) {
+          const star = document.createElement("div");
+          star.className = "star";
+          
+          // Random position
+          const top = Math.random() * 100;
+          const left = Math.random() * 100;
+          star.style.top = `${top}%`;
+          star.style.left = `${left}%`;
+          
+          // Random size (0.5px to 2px)
+          const size = Math.random() * 1.5 + 0.5;
+          star.style.width = `${size}px`;
+          star.style.height = `${size}px`;
+          
+          // Random opacity
+          star.style.opacity = Math.random() * 0.8 + 0.2;
+          
+          // Add to fragment
+          fragment.appendChild(star);
+        }
+        
+        // If we have more stars to process, schedule next batch
+        if (endIdx < starCount) {
+          setTimeout(() => {
+            createStarsBatch(endIdx, endIdx + batchSize);
+          }, 0);
+        } else {
+          // All stars created, append fragment to container
+          this.starContainer.appendChild(fragment);
+          log("Stars setup complete");
+        }
+      };
+      
+      // Start creating stars in batches
+      createStarsBatch(0, batchSize);
+    } catch (error) {
+      console.error("Error setting up stars:", error);
+      // Continue initialization even if stars fail
     }
-
-    // Initially hide stars
-    this.starContainer.style.opacity = "0";
   }
 
   setupClouds() {
@@ -1595,11 +1797,11 @@ class CityScene {
       const ufoRect = this.ufoWrap.getBoundingClientRect();
       this.ufoWrap.style.transition = "none";
       this.ufoWrap.style.animation = "none";
-      this.ufoWrap.style.top = `${ufoRect.top}px`;
-
       if (this.ufoWrap.style.top <= 15) {
         this.ufoWrap.style.top = "15px";
       }
+      this.ufoWrap.style.top = `${ufoRect.top}px`;
+
       this.ufoWrap.style.left = `${ufoRect.left}px`;
       this.ufoWrap.style.animationPlayState = "paused";
 
@@ -1881,12 +2083,14 @@ class CityScene {
     // Calculate viewport dimensions
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-    
+
     // Determine if we should keep the UFO in the upper half (90% chance)
     const keepInUpperHalf = Math.random() < 0.9;
-    
+
     // Calculate max vertical position based on whether to keep in upper half
-    const maxVerticalPosition = keepInUpperHalf ? viewportHeight * 0.5 : viewportHeight - 100;
+    const maxVerticalPosition = keepInUpperHalf
+      ? viewportHeight * 0.5
+      : viewportHeight - 100;
 
     // Temporarily disable transitions
     this.ufoWrap.style.transition = "none";
@@ -2013,45 +2217,60 @@ class CityScene {
   }
 
   // Schedule UFO to return after zooming off
-  // scheduleUfoReturn() {
-  //   setTimeout(() => {
-  //     // Make UFO invisible
-  //     this.ufoWrap.style.opacity = "0";
-
-  //     // After it's invisible, reset its position
-  //     setTimeout(() => {
-  //       // Store current vertical position
-  //       const currentTop = this.ufoWrap.getBoundingClientRect().top;
-
-  //       // Disable transitions temporarily
-  //       this.ufoWrap.style.transition = "none";
-
-  //       // Remove zoom classes
-  //       this.ufoWrap.classList.remove("zoomOffRight", "zoomOffLeft");
-
-  //       // Set a random horizontal position
-  //       const randomLeft = Math.random() * 80 + 10;
-  //       this.ufoWrap.style.left = `${randomLeft}%`;
-  //       this.ufoWrap.style.right = "";
-
-  //       // Maintain vertical position
-  //       if (currentTop > 0) {
-  //         this.ufoWrap.style.top = `${currentTop}px`;
-  //       }
-
-  //       // Force reflow to ensure the style changes take effect
-  //       void this.ufoWrap.offsetWidth;
-
-  //       // Make it visible and resume drifting
-  //       setTimeout(() => {
-  //         // Restore transitions before making visible
-  //         this.ufoWrap.style.transition = "";
-  //         this.ufoWrap.style.opacity = "1";
-  //         this.ufoWrap.classList.add("drifting");
-  //       }, 100);
-  //     }, 500);
-  //   }, 3000);
-  // }
+  scheduleUfoReturn() {
+    // Clear any existing return timeout
+    if (this.ufoReturnTimeout) {
+      clearTimeout(this.ufoReturnTimeout);
+    }
+    
+    // Schedule the UFO to return after a random delay (3-8 seconds)
+    const returnDelay = 3000 + Math.random() * 5000;
+    
+    this.ufoReturnTimeout = setTimeout(() => {
+      if (!this.ufoWrap || !this.isPlaying) return;
+      
+      // Reset position off-screen on the opposite side from where it left
+      const viewportWidth = window.innerWidth;
+      const randomHeight = 50 + Math.random() * 150;
+      
+      // Determine which side the UFO is currently on
+      const isOffRight = this.ufoWrap.style.right === "-110%";
+      
+      // Position UFO off-screen on the opposite side
+      this.ufoWrap.style.transition = "none";
+      
+      if (isOffRight) {
+        // If it went off right, bring it back from left
+        this.ufoWrap.style.left = "-110%";
+        this.ufoWrap.style.right = "auto";
+      } else {
+        // If it went off left, bring it back from right
+        this.ufoWrap.style.right = "-110%";
+        this.ufoWrap.style.left = "auto";
+      }
+      
+      this.ufoWrap.style.top = `${randomHeight}px`;
+      
+      // Force reflow
+      void this.ufoWrap.offsetWidth;
+      
+      // Animate the UFO coming back into view
+      this.ufoWrap.style.transition = "left 3s ease-in-out, right 3s ease-in-out";
+      
+      setTimeout(() => {
+        if (!this.ufoWrap || !this.isPlaying) return;
+        
+        if (isOffRight) {
+          // If it went off right, position it on the left side
+          this.ufoWrap.style.left = "100px";
+        } else {
+          // If it went off left, position it on the right side
+          this.ufoWrap.style.right = "100px";
+        }
+      }, 50);
+      
+    }, returnDelay);
+  }
 
   shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) {
@@ -2161,50 +2380,62 @@ class CityScene {
   // Add a cleanup method to properly dispose of resources
   cleanup() {
     log("Cleaning up CityScene resources");
-    
+
     try {
       // Cancel any pending animations
       if (this.animationFrameId) {
         cancelAnimationFrame(this.animationFrameId);
         this.animationFrameId = null;
       }
-      
+
       // Clear any intervals
       if (this.ufoMovementInterval) {
         clearInterval(this.ufoMovementInterval);
         this.ufoMovementInterval = null;
       }
-      
+
       // Remove event listeners
       if (this.eventHandlers.visibilityChange) {
-        document.removeEventListener("visibilitychange", this.eventHandlers.visibilityChange);
+        document.removeEventListener(
+          "visibilitychange",
+          this.eventHandlers.visibilityChange
+        );
       }
-      
+
       if (this.eventHandlers.playPauseClick && this.playPauseBtn) {
-        this.playPauseBtn.removeEventListener("click", this.eventHandlers.playPauseClick);
+        this.playPauseBtn.removeEventListener(
+          "click",
+          this.eventHandlers.playPauseClick
+        );
       }
-      
+
       if (this.eventHandlers.resetClick && this.resetBtn) {
         this.resetBtn.removeEventListener("click", this.eventHandlers.resetClick);
       }
-      
+
       if (this.eventHandlers.speedChange && this.speedSlider) {
-        this.speedSlider.removeEventListener("input", this.eventHandlers.speedChange);
+        this.speedSlider.removeEventListener(
+          "input",
+          this.eventHandlers.speedChange
+        );
       }
-      
+
       if (this.eventHandlers.clockToggle && this.clockToggleBtn) {
-        this.clockToggleBtn.removeEventListener("click", this.eventHandlers.clockToggle);
+        this.clockToggleBtn.removeEventListener(
+          "click",
+          this.eventHandlers.clockToggle
+        );
       }
-      
+
       if (this.eventHandlers.resize) {
         window.removeEventListener("resize", this.eventHandlers.resize);
       }
-      
+
       // Reset state
       this.isPlaying = false;
       this.isInitialized = false;
       this.loadingComplete = false;
-      
+
       // Hide loading overlay if it's visible
       if (this.loadingOverlay) {
         this.loadingOverlay.style.display = "none";
@@ -2212,7 +2443,7 @@ class CityScene {
     } catch (error) {
       console.error("Error during cleanup:", error);
     }
-    
+
     log("CityScene cleanup complete");
   }
 }

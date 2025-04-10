@@ -1170,7 +1170,7 @@ button:hover {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: #000;
+  background-color: rgba(0, 0, 0, 0.9);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1197,9 +1197,8 @@ button:hover {
 
 .loading-text {
   color: white;
-  font-family: Arial, sans-serif;
   margin-top: 20px;
-  font-size: 16px;
+  font-family: sans-serif;
 }
 
 @keyframes spin {
@@ -1247,4 +1246,31 @@ body.loading #clock {
 .window-transition-6 {
   transition: background-color 6s ease, background-image 6s ease,
     box-shadow 6s ease;
+}
+
+/* Emergency refresh button styling */
+.emergency-button {
+  margin-top: 20px;
+  padding: 10px 20px;
+  background-color: #ff3b30;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  cursor: pointer;
+  font-family: sans-serif;
+  text-decoration: none;
+  display: inline-block;
+  opacity: 0.7;
+  visibility: visible;
+  transition: opacity 0.3s ease, background-color 0.3s ease;
+}
+
+.emergency-button:hover {
+  background-color: #ff6651;
+  opacity: 1;
+}
+
+.emergency-button.visible {
+  opacity: 1;
 }
