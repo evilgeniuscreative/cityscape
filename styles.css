@@ -355,7 +355,7 @@ body {
 }
 
 .airplane.goRight {
-    background-image: url("./img/airplaneR.png");
+  background-image: url("./img/airplaneR.png");
   animation: goRight 7s linear;
 }
 
@@ -1249,7 +1249,7 @@ body.loading #clock {
 }
 
 /* Emergency refresh button styling */
-.emergency-button {
+#emergency-refresh {
   margin-top: 20px;
   padding: 10px 20px;
   background-color: #ff3b30;
@@ -1266,11 +1266,11 @@ body.loading #clock {
   transition: opacity 0.3s ease, background-color 0.3s ease;
 }
 
-.emergency-button:hover {
+#emergency-refresh:hover {
   background-color: #ff6651;
   opacity: 1;
 }
 
-.emergency-button.visible {
+#emergency-refresh.visible {
   opacity: 1;
 }
