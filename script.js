@@ -3,6 +3,49 @@ const CYCLE_DURATION = 120000; // Milliseconds for one 24-hour cycle (2 minutes)
 const DEBUG = true; // Enable/disable debug logging
 const INIT_TIMEOUT = 30000; // 30 second timeout for initialization
 
+// Global variable to track if heartbeats are enabled
+let heartbeatsEnabled = true;
+let heartbeatInterval = null;
+
+// Send heartbeats to watchdog if we're in an iframe
+function sendHeartbeat() {
+  try {
+    if (window.parent && window.parent !== window && heartbeatsEnabled) {
+      window.parent.postMessage('heartbeat', '*');
+      if (DEBUG) console.log('Heartbeat sent to parent window');
+    }
+  } catch (e) {
+    // Silently fail if postMessage is not available
+  }
+}
+
+// Start sending heartbeats every second
+function startHeartbeatSystem() {
+  heartbeatsEnabled = true;
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+  }
+  heartbeatInterval = setInterval(sendHeartbeat, 1000);
+  sendHeartbeat(); // Send initial heartbeat
+  console.log('Heartbeat system started');
+}
+
+// Initialize heartbeat system
+startHeartbeatSystem();
+
+// Add a test function to stop heartbeats (for testing watchdog)
+function stopHeartbeats() {
+  heartbeatsEnabled = false;
+  console.log('Heartbeats stopped for testing watchdog');
+}
+
+// Add a function to resume heartbeats
+function resumeHeartbeats() {
+  heartbeatsEnabled = true;
+  sendHeartbeat();
+  console.log('Heartbeats resumed');
+}
+
 // Helper for debug logging
 function log(message) {
   try {
@@ -105,7 +148,7 @@ function monitorInitialization() {
   // Store the last loading message
   let lastLoadingMessage = "";
   let lastChangeTime = Date.now();
-  
+
   // Check every second if loading is stuck
   const monitorInterval = setInterval(() => {
     const loadingText = document.querySelector(".loading-text");
@@ -113,24 +156,29 @@ function monitorInitialization() {
       clearInterval(monitorInterval);
       return;
     }
-    
+
     const currentMessage = loadingText.textContent;
-    
+
     // If loading overlay is not visible, stop monitoring
     const loadingOverlay = document.getElementById("loading-overlay");
     if (loadingOverlay && loadingOverlay.style.display === "none") {
       clearInterval(monitorInterval);
       return;
     }
-    
-    // If message hasn't changed in 10 seconds, might be stuck
+
+    // If message hasn't changed in 3 seconds, might be stuck
     if (currentMessage === lastLoadingMessage) {
       const timeSinceChange = Date.now() - lastChangeTime;
-      if (timeSinceChange > 10000) { // 10 seconds
-        console.warn(`Loading appears stuck at "${currentMessage}" for ${Math.round(timeSinceChange/1000)} seconds`);
-        
-        // After 15 seconds of being stuck, show emergency button
-        if (timeSinceChange > 15000) {
+      if (timeSinceChange > 3000) {
+        // 3 seconds
+        console.warn(
+          `Loading appears stuck at "${currentMessage}" for ${Math.round(
+            timeSinceChange / 1000
+          )} seconds`
+        );
+
+        // After 5 seconds of being stuck, show emergency button
+        if (timeSinceChange > 5000) {
           const emergencyBtn = document.getElementById("emergency-refresh");
           if (emergencyBtn) {
             emergencyBtn.classList.add("visible");
@@ -144,7 +192,7 @@ function monitorInitialization() {
       lastChangeTime = Date.now();
     }
   }, 1000);
-  
+
   return monitorInterval;
 }
 
@@ -156,6 +204,18 @@ let activeScene = null;
 // Initialize on page load
 document.addEventListener("DOMContentLoaded", () => {
   log("Document loaded, initializing scene");
+
+  // Add event listener for watchdog test button
+  const testWatchdogBtn = document.getElementById("testWatchdog");
+  if (testWatchdogBtn) {
+    testWatchdogBtn.addEventListener("click", () => {
+      log("Watchdog test button clicked - stopping heartbeats");
+      stopHeartbeats();
+      
+      // Alert the user that the test has started
+      alert("Heartbeats stopped. The watchdog should trigger in about 5 seconds.");
+    });
+  }
 
   // Show loading overlay immediately
   const loadingOverlay = document.getElementById("loading-overlay");
@@ -220,8 +280,8 @@ class CityScene {
     this.options = Object.assign(
       {
         cycleDuration: 240000, // 4 minutes per day/night cycle
-        buildingCount: 15,
-        houseCount: 8,
+        buildingCount: 15 + Math.floor(Math.random() * 10),
+        houseCount: 10 + Math.floor(Math.random() * 5),
         minClouds: 3,
         maxClouds: 8,
         starCount: 100,
@@ -381,6 +441,19 @@ class CityScene {
           emergencyBtn.classList.add("visible");
           setLoadingText("Loading taking too long. Consider refreshing.");
         }
+        
+        // Force hide loading overlay after timeout
+        if (this.loadingOverlay) {
+          this.loadingOverlay.style.display = "none";
+          log("Force hiding loading overlay due to timeout");
+          
+          // Ensure scene container is visible
+          const sceneContainer = document.getElementById("scene-container");
+          if (sceneContainer) {
+            sceneContainer.style.display = "block";
+            sceneContainer.style.visibility = "visible";
+          }
+        }
       }, INIT_TIMEOUT);
 
       // Update loading text if available
@@ -466,6 +539,14 @@ class CityScene {
           if (this.loadingOverlay) {
             setTimeout(() => {
               this.loadingOverlay.style.display = "none";
+              
+              // Ensure scene container is visible
+              const sceneContainer = document.getElementById("scene-container");
+              if (sceneContainer) {
+                sceneContainer.style.display = "block";
+                sceneContainer.style.visibility = "visible";
+                sceneContainer.style.opacity = "1";
+              }
             }, 500);
           }
         } catch (error) {
@@ -736,11 +817,11 @@ class CityScene {
           building.className = "building";
 
           // Random width (50px to 100px)
-          const width = Math.floor(Math.random() * 50) + 50;
+          const width = Math.floor(Math.random() * 150) + 50;
           building.style.width = width + "px";
 
           // Random height (150px to 300px)
-          const height = Math.floor(Math.random() * 150) + 150;
+          const height = Math.floor(Math.random() * 400) + 150;
           building.style.height = height + "px";
 
           // Random position
@@ -757,7 +838,7 @@ class CityScene {
             for (let k = 0; k < windowCount; k++) {
               const window = document.createElement("div");
               window.className = "window";
-              
+
               // Add to window tracking with a 70% chance of being active
               if (Math.random() < 0.7) {
                 // Store window object with proper properties
@@ -765,16 +846,16 @@ class CityScene {
                   element: window,
                   state: "off",
                   hasBeenOn: false,
-                  building: true
+                  building: true,
                 });
               }
-              
+
               floor.appendChild(window);
             }
-            
+
             building.appendChild(floor);
           }
-          
+
           // Add to fragment
           fragment.appendChild(building);
         } catch (error) {
@@ -782,7 +863,7 @@ class CityScene {
           // Continue with next building
         }
       }
-      
+
       // If we have more buildings to process, schedule next batch
       if (endIdx < buildingCount) {
         setTimeout(() => {
@@ -792,12 +873,12 @@ class CityScene {
         // All buildings created, append fragment to cityscape
         cityscape.appendChild(fragment);
         log("Buildings created");
-        
+
         // Update loading text
         setLoadingText("Buildings created successfully");
       }
     };
-    
+
     // Start creating buildings in batches
     createBuildingsBatch(0, batchSize);
   }
@@ -836,7 +917,7 @@ class CityScene {
 
     // Create array of x positions
     const positions = [];
-    for (let i = 0; i < houseCount; i++) {
+    for (let i = 0; i <= houseCount; i++) {
       let x;
       do {
         x = Math.random() * (containerWidth - 120); // 120px is house width
@@ -1002,7 +1083,7 @@ class CityScene {
   setupStars() {
     // Update loading text
     setLoadingText("setupStars()...");
-    
+
     try {
       // Make sure the star container exists
       if (!this.starContainer) {
@@ -1022,30 +1103,30 @@ class CityScene {
       const starCount = Math.floor(Math.random() * 50) + 100; // 100-150 stars
       const batchSize = 20; // Process stars in smaller batches
       const fragment = document.createDocumentFragment(); // Use fragment for better performance
-      
+
       const createStarsBatch = (startIdx, endIdx) => {
         for (let i = startIdx; i < endIdx && i < starCount; i++) {
           const star = document.createElement("div");
           star.className = "star";
-          
+
           // Random position
           const top = Math.random() * 100;
           const left = Math.random() * 100;
           star.style.top = `${top}%`;
           star.style.left = `${left}%`;
-          
+
           // Random size (0.5px to 2px)
           const size = Math.random() * 1.5 + 0.5;
           star.style.width = `${size}px`;
           star.style.height = `${size}px`;
-          
+
           // Random opacity
           star.style.opacity = Math.random() * 0.8 + 0.2;
-          
+
           // Add to fragment
           fragment.appendChild(star);
         }
-        
+
         // If we have more stars to process, schedule next batch
         if (endIdx < starCount) {
           setTimeout(() => {
@@ -1057,7 +1138,7 @@ class CityScene {
           log("Stars setup complete");
         }
       };
-      
+
       // Start creating stars in batches
       createStarsBatch(0, batchSize);
     } catch (error) {
@@ -2222,23 +2303,23 @@ class CityScene {
     if (this.ufoReturnTimeout) {
       clearTimeout(this.ufoReturnTimeout);
     }
-    
+
     // Schedule the UFO to return after a random delay (3-8 seconds)
     const returnDelay = 3000 + Math.random() * 5000;
-    
+
     this.ufoReturnTimeout = setTimeout(() => {
       if (!this.ufoWrap || !this.isPlaying) return;
-      
+
       // Reset position off-screen on the opposite side from where it left
       const viewportWidth = window.innerWidth;
       const randomHeight = 50 + Math.random() * 150;
-      
+
       // Determine which side the UFO is currently on
       const isOffRight = this.ufoWrap.style.right === "-110%";
-      
+
       // Position UFO off-screen on the opposite side
       this.ufoWrap.style.transition = "none";
-      
+
       if (isOffRight) {
         // If it went off right, bring it back from left
         this.ufoWrap.style.left = "-110%";
@@ -2248,18 +2329,19 @@ class CityScene {
         this.ufoWrap.style.right = "-110%";
         this.ufoWrap.style.left = "auto";
       }
-      
+
       this.ufoWrap.style.top = `${randomHeight}px`;
-      
+
       // Force reflow
       void this.ufoWrap.offsetWidth;
-      
+
       // Animate the UFO coming back into view
-      this.ufoWrap.style.transition = "left 3s ease-in-out, right 3s ease-in-out";
-      
+      this.ufoWrap.style.transition =
+        "left 3s ease-in-out, right 3s ease-in-out";
+
       setTimeout(() => {
         if (!this.ufoWrap || !this.isPlaying) return;
-        
+
         if (isOffRight) {
           // If it went off right, position it on the left side
           this.ufoWrap.style.left = "100px";
@@ -2268,7 +2350,6 @@ class CityScene {
           this.ufoWrap.style.right = "100px";
         }
       }, 50);
-      
     }, returnDelay);
   }
 
@@ -2394,6 +2475,11 @@ class CityScene {
         this.ufoMovementInterval = null;
       }
 
+      // Clear global heartbeat interval
+      if (typeof heartbeatInterval !== 'undefined') {
+        clearInterval(heartbeatInterval);
+      }
+
       // Remove event listeners
       if (this.eventHandlers.visibilityChange) {
         document.removeEventListener(
@@ -2410,7 +2496,10 @@ class CityScene {
       }
 
       if (this.eventHandlers.resetClick && this.resetBtn) {
-        this.resetBtn.removeEventListener("click", this.eventHandlers.resetClick);
+        this.resetBtn.removeEventListener(
+          "click",
+          this.eventHandlers.resetClick
+        );
       }
 
       if (this.eventHandlers.speedChange && this.speedSlider) {

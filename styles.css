@@ -645,21 +645,29 @@ body {
 .scene-night .window:not(.lit) {
   background-color: #1a1a1a;
   background-image: none;
+  transition: background-color 0.3s ease, background-image 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 .scene-night .window.lit {
   background-color: #ffeb3b;
   background-image: none;
   box-shadow: 0 0 10px rgba(255, 235, 59, 0.5);
+  transition: background-color 0.3s ease, background-image 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 .window.lit {
   background-color: #ffeb3b;
   background-image: none;
+  transition: background-color 0.3s ease, background-image 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 .scene-dusk .window:not(.lit) {
   background: linear-gradient(45deg, #b9e1ff 0%, #1c6ea4 100%);
+  transition: background-color 0.3s ease, background-image 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 .house {
